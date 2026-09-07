@@ -1,6 +1,10 @@
 import { AppSidebar } from '@/components/layout/app-sidebar';
+import { FlashToast } from '@/components/flash-toast';
 import { SkipToMain } from '@/components/skip-to-main';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import {
+    SidebarInset,
+    SidebarProvider,
+} from '@/components/ui/sidebar';
 import { LayoutProvider } from '@/context/layout-provider';
 import { SearchProvider } from '@/context/search-provider';
 import { getCookie } from '@/lib/cookies';
@@ -10,14 +14,22 @@ type AuthenticatedLayoutProps = {
     children: React.ReactNode;
 };
 
-export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
-    const defaultOpen = getCookie('sidebar_state') !== 'false';
+export function AuthenticatedLayout({
+    children,
+}: AuthenticatedLayoutProps) {
+    const defaultOpen =
+        getCookie('sidebar_state') !== 'false';
+
     return (
         <SearchProvider>
             <LayoutProvider>
-                <SidebarProvider defaultOpen={defaultOpen}>
+                <SidebarProvider
+                    defaultOpen={defaultOpen}
+                >
                     <SkipToMain />
+
                     <AppSidebar />
+
                     <SidebarInset
                         className={cn(
                             // Set content container, so we can use container queries
@@ -28,12 +40,16 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
                             'has-data-[layout=fixed]:h-svh',
 
                             // If layout is fixed and sidebar is inset,
-                            // set the height to 100svh - spacing (total margins) to prevent overflow
+                            // set the height to 100svh - spacing
+                            // (total margins) to prevent overflow
                             'peer-data-[variant=inset]:has-data-[layout=fixed]:h-[calc(100svh-(var(--spacing)*4))]',
                         )}
                     >
                         {children}
                     </SidebarInset>
+
+                    {/* Global authenticated-route flash toast */}
+                    <FlashToast />
                 </SidebarProvider>
             </LayoutProvider>
         </SearchProvider>

@@ -8,13 +8,46 @@ import { UsersDialogs } from './components/users-dialogs';
 import { UsersPrimaryButtons } from './components/users-primary-buttons';
 import { UsersProvider } from './components/users-provider';
 import { UsersTable } from './components/users-table';
-import { users } from './data/users';
 
-export function Users() {
+export interface BackendUser {
+    id: number;
+    firstName: string;
+    lastName: string;
+    username: string;
+    email: string;
+    phoneNumber: string | null;
+    status: string;
+    role: string;
+    companyCount: number;
+    createdAt: string | null;
+    updatedAt: string | null;
+}
+
+export interface BackendUsersPagination {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+}
+
+interface UsersPageProps {
+    users: {
+        data: BackendUser[];
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+    };
+}
+
+export function Users({
+    users,
+}: UsersPageProps) {
     return (
         <UsersProvider>
-            <Header fixed>
+            <Header>
                 <Search />
+
                 <div className="ms-auto flex items-center space-x-4">
                     <ThemeSwitch />
                     <ConfigDrawer />
@@ -22,15 +55,36 @@ export function Users() {
                 </div>
             </Header>
 
-            <Main className="flex flex-1 flex-col gap-4 sm:gap-6">
-                <div className="flex flex-wrap items-end justify-between gap-2">
+            <Main>
+                <div className="mb-2 flex items-center justify-between space-y-2">
                     <div>
-                        <h2 className="text-2xl font-bold tracking-tight">User List</h2>
-                        <p className="text-muted-foreground">Manage your users and their roles here.</p>
+                        <h2 className="text-2xl font-bold tracking-tight">
+                            User List
+                        </h2>
+
+                        <p className="text-muted-foreground">
+                            Manage your users here.
+                        </p>
                     </div>
+
                     <UsersPrimaryButtons />
                 </div>
-                <UsersTable data={users} />
+
+                <div className="-mx-4 flex-1 overflow-auto px-4 py-1 lg:flex-row lg:space-x-12 lg:space-y-0">
+                    <UsersTable
+                        data={users.data}
+                        pagination={{
+                            current_page:
+                                users.current_page,
+                            last_page:
+                                users.last_page,
+                            per_page:
+                                users.per_page,
+                            total:
+                                users.total,
+                        }}
+                    />
+                </div>
             </Main>
 
             <UsersDialogs />

@@ -1,5 +1,4 @@
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { useAuthStore } from '@/stores/auth-store';
 import { router } from '@inertiajs/react';
 
 interface SignOutDialogProps {
@@ -7,16 +6,16 @@ interface SignOutDialogProps {
     onOpenChange: (open: boolean) => void;
 }
 
-export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
-    const { auth } = useAuthStore();
+export function SignOutDialog({
+    open,
+    onOpenChange,
+}: SignOutDialogProps) {
 
     const handleSignOut = () => {
-        auth.reset();
-        // Preserve current location for redirect after sign-in
-        const currentPath = window.location.pathname;
-        router.visit('/auth/sign-in', {
-            data: { redirect: currentPath },
-            replace: true,
+        router.post('/logout', {}, {
+            onFinish: () => {
+                onOpenChange(false);
+            },
         });
     };
 

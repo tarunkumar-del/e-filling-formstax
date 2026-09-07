@@ -1,4 +1,12 @@
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import { FlashMessage } from '@/components/flash-message';
 import { Link } from '@inertiajs/react';
 import { AuthLayout } from '../auth-layout';
 import { SignUpForm } from './components/sign-up-form';
@@ -8,31 +16,52 @@ export function SignUp() {
         <AuthLayout>
             <Card className="gap-4">
                 <CardHeader>
-                    <CardTitle className="text-lg tracking-tight">Create an account</CardTitle>
+                    <CardTitle className="text-lg tracking-tight">
+                        Create an account
+                    </CardTitle>
+
                     <CardDescription>
-                        Enter your email and password to create an account. <br />
+                        Enter your email to get started. <br />
+
                         Already have an account?{' '}
-                        <Link href="/sign-in" className="underline underline-offset-4 hover:text-primary">
+
+                        <Link
+                            href="/sign-in"
+                            className="underline underline-offset-4 hover:text-primary"
+                        >
                             Sign In
                         </Link>
                     </CardDescription>
                 </CardHeader>
+
+                <FlashMessage />
+
                 <CardContent>
                     <SignUpForm />
                 </CardContent>
-                <CardFooter>
+
+                {/* <CardFooter>
                     <p className="px-8 text-center text-sm text-muted-foreground">
                         By creating an account, you agree to our{' '}
-                        <a href="/terms" className="underline underline-offset-4 hover:text-primary">
+
+                        <a
+                            href="/terms"
+                            className="underline underline-offset-4 hover:text-primary"
+                        >
                             Terms of Service
                         </a>{' '}
+
                         and{' '}
-                        <a href="/privacy" className="underline underline-offset-4 hover:text-primary">
+
+                        <a
+                            href="/privacy"
+                            className="underline underline-offset-4 hover:text-primary"
+                        >
                             Privacy Policy
                         </a>
                         .
                     </p>
-                </CardFooter>
+                </CardFooter> */}
             </Card>
         </AuthLayout>
     );

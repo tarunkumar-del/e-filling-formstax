@@ -1,0 +1,224 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Application\Company\Commands\CreateCompany\CreateCompanyHandler;
+use App\Application\Company\Commands\UpdateCompany\UpdateCompanyHandler;
+use App\Application\Company\DTOs\CompanyData;
+use App\Domain\Company\Repositories\CompanyRepositoryInterface;
+use App\Http\Requests\Company\StoreCompanyRequest;
+use App\Http\Requests\Company\UpdateCompanyRequest;
+use Illuminate\Http\RedirectResponse;
+use Inertia\Inertia;
+use Inertia\Response;
+use App\Models\Company;
+
+final class CompanyController extends Controller
+{
+    public function __construct(
+        private CompanyRepositoryInterface $companies,
+    ) {
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Company List
+    |--------------------------------------------------------------------------
+    */
+
+    public function index(): Response
+    {
+        $user = auth()->user();
+
+        $companies = $user->hasRole('admin')
+            ? $this->companies->all()
+            : $this->companies->allForUser($user->id);
+
+        return Inertia::render('authenticated/companies', [
+            'companies' => $companies,
+
+            'companyStoreUrl' => $user->hasRole('admin')
+                ? route('admin.companies.store')
+                : route('companies.store'),
+
+            'companyUpdateBaseUrl' => $user->hasRole('admin')
+                ? url('/admin/companies')
+                : url('/companies'),
+
+            'companyViewBaseUrl' => $user->hasRole('admin')
+                ? url('/admin/companies')
+                : url('/companies'),
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Create
+    |--------------------------------------------------------------------------
+    */
+
+    public function store(
+        StoreCompanyRequest $request,
+        CreateCompanyHandler $handler
+    ): RedirectResponse {
+        $handler->handle(
+            new CompanyData(
+                taxIdType: $request->validated('tax_id_type'),
+                taxId: $request->validated('tax_id'),
+
+                payerFirstName:
+                $request->validated('payer_first_name'),
+
+                payerLastName:
+                $request->validated('payer_last_name'),
+
+                businessEntityName:
+                $request->validated(
+                    'business_entity_name'
+                ),
+
+                address1:
+                $request->validated('address_1'),
+
+                address2:
+                $request->validated('address_2'),
+
+                country:
+                $request->validated('country'),
+
+                city:
+                $request->validated('city'),
+
+                state:
+                $request->validated('state'),
+
+                zipCode:
+                $request->validated('zip_code'),
+
+                phone:
+                $request->validated('phone'),
+
+                email:
+                $request->validated('email'),
+
+                payerContactName:
+                $request->validated(
+                    'payer_contact_name'
+                ),
+            ),
+
+            auth()->id()
+        );
+
+        return back()->with(
+            'success',
+            'Company created successfully.'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Update
+    |--------------------------------------------------------------------------
+    */
+
+    public function update(
+        UpdateCompanyRequest $request,
+        int $company,
+        UpdateCompanyHandler $handler
+    ): RedirectResponse {
+        $user = auth()->user();
+
+        $companyModel = $user->hasRole('admin')
+            ? $this->companies->find($company)
+            : $this->companies->findForUser(
+                $company,
+                $user->id
+            );
+
+        abort_unless($companyModel, 404);
+
+        $handler->handle(
+            $companyModel,
+
+            new CompanyData(
+                taxIdType:
+                $request->validated('tax_id_type'),
+
+                taxId:
+                $request->validated('tax_id'),
+
+                payerFirstName:
+                $request->validated('payer_first_name'),
+
+                payerLastName:
+                $request->validated('payer_last_name'),
+
+                businessEntityName:
+                $request->validated(
+                    'business_entity_name'
+                ),
+
+                address1:
+                $request->validated('address_1'),
+
+                address2:
+                $request->validated('address_2'),
+
+                country:
+                $request->validated('country'),
+
+                city:
+                $request->validated('city'),
+
+                state:
+                $request->validated('state'),
+
+                zipCode:
+                $request->validated('zip_code'),
+
+                phone:
+                $request->validated('phone'),
+
+                email:
+                $request->validated('email'),
+
+                payerContactName:
+                $request->validated(
+                    'payer_contact_name'
+                ),
+            )
+        );
+
+        return back()->with(
+            'success',
+            'Company updated successfully.'
+        );
+    }
+
+    public function show(Company $company): Response
+    {
+        $user = auth()->user();
+
+        if (!$user->hasRole('admin') && $company->user_id !== $user->id) {
+            abort(404);
+        }
+
+        return Inertia::render('authenticated/company-show', [
+            'company' => $company,
+            'contractors' => $company->contractors()
+            ->with([
+                'country',
+                'region',
+                'city',
+            ])
+            ->latest()
+            ->get(),
+            'backUrl' => $user->hasRole('admin')
+                ? route('admin.companies.index')
+                : route('companies.index'),
+            'isAdmin' => $user->hasRole('admin'),
+        ]);
+    }
+}
+

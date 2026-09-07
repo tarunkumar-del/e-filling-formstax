@@ -1,35 +1,57 @@
 'use client';
 
 import { PasswordInput } from '@/components/password-input';
-import { SelectDropdown } from '@/components/select-dropdown';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { showSubmittedData } from '@/lib/show-submitted-data';
+import { router } from '@inertiajs/react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { roles } from '../data/data';
 import { type User } from '../data/schema';
 
 const formSchema = z
     .object({
-        firstName: z.string().min(1, 'First Name is required.'),
-        lastName: z.string().min(1, 'Last Name is required.'),
-        username: z.string().min(1, 'Username is required.'),
-        phoneNumber: z.string().min(1, 'Phone number is required.'),
-        email: z.email({
-            error: (iss) => (iss.input === '' ? 'Email is required.' : undefined),
-        }),
-        password: z.string().transform((pwd) => pwd.trim()),
-        role: z.string().min(1, 'Role is required.'),
-        confirmPassword: z.string().transform((pwd) => pwd.trim()),
+        name: z
+            .string()
+            .trim()
+            .min(1, 'Name is required.')
+            .max(255, 'Name must not exceed 255 characters.'),
+
+        email: z
+            .string()
+            .trim()
+            .min(1, 'Email is required.')
+            .email('Please enter a valid email address.'),
+
+        password: z.string(),
+
+        password_confirmation: z.string(),
+
         isEdit: z.boolean(),
     })
     .refine(
         (data) => {
-            if (data.isEdit && !data.password) return true;
+            if (data.isEdit && !data.password) {
+                return true;
+            }
+
             return data.password.length > 0;
         },
         {
@@ -38,45 +60,64 @@ const formSchema = z
         },
     )
     .refine(
-        ({ isEdit, password }) => {
-            if (isEdit && !password) return true;
-            return password.length >= 8;
+        (data) => {
+            if (data.isEdit && !data.password) {
+                return true;
+            }
+
+            return data.password.length >= 8;
         },
         {
-            message: 'Password must be at least 8 characters long.',
+            message:
+                'Password must be at least 8 characters long.',
             path: ['password'],
         },
     )
     .refine(
-        ({ isEdit, password }) => {
-            if (isEdit && !password) return true;
-            return /[a-z]/.test(password);
+        (data) => {
+            if (data.isEdit && !data.password) {
+                return true;
+            }
+
+            return /[a-z]/.test(data.password);
         },
         {
-            message: 'Password must contain at least one lowercase letter.',
+            message:
+                'Password must contain at least one lowercase letter.',
             path: ['password'],
         },
     )
     .refine(
-        ({ isEdit, password }) => {
-            if (isEdit && !password) return true;
-            return /\d/.test(password);
+        (data) => {
+            if (data.isEdit && !data.password) {
+                return true;
+            }
+
+            return /\d/.test(data.password);
         },
         {
-            message: 'Password must contain at least one number.',
+            message:
+                'Password must contain at least one number.',
             path: ['password'],
         },
     )
     .refine(
-        ({ isEdit, password, confirmPassword }) => {
-            if (isEdit && !password) return true;
-            return password === confirmPassword;
+        (data) => {
+            if (data.isEdit && !data.password) {
+                return true;
+            }
+
+            return (
+                data.password ===
+                data.password_confirmation
+            );
         },
         {
             message: "Passwords don't match.",
-            path: ['confirmPassword'],
+            path: ['password_confirmation'],
         },
     );
+
 type UserForm = z.infer<typeof formSchema>;
 
 type UserActionDialogProps = {
@@ -85,169 +126,356 @@ type UserActionDialogProps = {
     onOpenChange: (open: boolean) => void;
 };
 
-export function UsersActionDialog({ currentRow, open, onOpenChange }: UserActionDialogProps) {
+export function UsersActionDialog({
+    currentRow,
+    open,
+    onOpenChange,
+}: UserActionDialogProps) {
     const isEdit = !!currentRow;
+
+    /*
+     * Request processing state.
+     */
+    const [processing, setProcessing] =
+        useState(false);
+
+    /*
+     * React Hook Form.
+     *
+     * This is now the SINGLE source of truth
+     * for the form values.
+     */
     const form = useForm<UserForm>({
         resolver: zodResolver(formSchema),
-        defaultValues: isEdit
-            ? {
-                  ...currentRow,
-                  password: '',
-                  confirmPassword: '',
-                  isEdit,
-              }
-            : {
-                  firstName: '',
-                  lastName: '',
-                  username: '',
-                  email: '',
-                  role: '',
-                  phoneNumber: '',
-                  password: '',
-                  confirmPassword: '',
-                  isEdit,
-              },
+
+        defaultValues: {
+            name: '',
+            email: '',
+            password: '',
+            password_confirmation: '',
+            isEdit: false,
+        },
     });
 
-    const onSubmit = (values: UserForm) => {
-        form.reset();
-        showSubmittedData(values);
-        onOpenChange(false);
+    /*
+     * Populate form when Add/Edit dialog opens.
+     */
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        if (currentRow) {
+            const fullName =
+                `${currentRow.firstName ?? ''} ${
+                    currentRow.lastName ?? ''
+                }`
+                    .trim()
+                    .replace(/\s+/g, ' ');
+
+            form.reset({
+                name: fullName,
+                email: currentRow.email ?? '',
+                password: '',
+                password_confirmation: '',
+                isEdit: true,
+            });
+        } else {
+            form.reset({
+                name: '',
+                email: '',
+                password: '',
+                password_confirmation: '',
+                isEdit: false,
+            });
+        }
+    }, [open, currentRow]);
+
+    const isPasswordTouched =
+        !!form.formState.dirtyFields.password;
+
+    /*
+     * Close dialog.
+     */
+    const handleClose = (
+        state: boolean,
+    ) => {
+        if (!state && !processing) {
+            form.reset();
+            form.clearErrors();
+        }
+
+        onOpenChange(state);
     };
 
-    const isPasswordTouched = !!form.formState.dirtyFields.password;
+    /*
+     * Submit Add / Edit User.
+     */
+    const onSubmit = (
+        values: UserForm,
+    ) => {
+        /*
+         * IMPORTANT:
+         *
+         * We directly use React Hook Form values.
+         *
+         * No setData().
+         * No separate Inertia form state.
+         *
+         * This guarantees the exact values typed
+         * by the user are sent to Laravel.
+         */
+        const payload = {
+            name: values.name.trim(),
+            email: values.email.trim(),
+            password: values.password,
+            password_confirmation:
+                values.password_confirmation,
+
+            /*
+             * Role is always user.
+             * There is no role field in the UI.
+             */
+            role: 'user',
+        };
+
+        setProcessing(true);
+
+        /*
+         * Clear old backend errors.
+         */
+        form.clearErrors();
+
+        /*
+         * Backend validation errors.
+         */
+        const handleError = (
+            errors: Record<string, string>,
+        ) => {
+            setProcessing(false);
+
+            Object.entries(errors).forEach(
+                ([field, message]) => {
+                    if (
+                        field === 'name' ||
+                        field === 'email' ||
+                        field === 'password' ||
+                        field ===
+                            'password_confirmation'
+                    ) {
+                        form.setError(
+                            field as
+                                | 'name'
+                                | 'email'
+                                | 'password'
+                                | 'password_confirmation',
+                            {
+                                type: 'server',
+                                message,
+                            },
+                        );
+                    }
+                },
+            );
+        };
+
+        /*
+         * Successful request.
+         */
+        const handleSuccess = () => {
+            setProcessing(false);
+
+            form.reset();
+            form.clearErrors();
+
+            onOpenChange(false);
+        };
+
+        /*
+         * ADD USER
+         */
+        if (!currentRow) {
+            router.post(
+                '/admin/users',
+                payload,
+                {
+                    preserveScroll: true,
+
+                    onSuccess:
+                        handleSuccess,
+
+                    onError:
+                        handleError,
+
+                    onFinish: () => {
+                        setProcessing(false);
+                    },
+                },
+            );
+
+            return;
+        }
+
+        /*
+         * EDIT USER
+         */
+        router.put(
+            `/admin/users/${currentRow.id}`,
+            payload,
+            {
+                preserveScroll: true,
+
+                onSuccess:
+                    handleSuccess,
+
+                onError:
+                    handleError,
+
+                onFinish: () => {
+                    setProcessing(false);
+                },
+            },
+        );
+    };
 
     return (
         <Dialog
             open={open}
-            onOpenChange={(state) => {
-                form.reset();
-                onOpenChange(state);
-            }}
+            onOpenChange={handleClose}
         >
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader className="text-start">
-                    <DialogTitle>{isEdit ? 'Edit User' : 'Add New User'}</DialogTitle>
+                    <DialogTitle>
+                        {isEdit
+                            ? 'Edit User'
+                            : 'Add New User'}
+                    </DialogTitle>
+
                     <DialogDescription>
-                        {isEdit ? 'Update the user here. ' : 'Create new user here. '}
+                        {isEdit
+                            ? 'Update the user information here.'
+                            : 'Create a new user account here.'}{' '}
                         Click save when you&apos;re done.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="h-[26.25rem] w-[calc(100%+0.75rem)] overflow-y-auto py-1 pe-3">
+
+                <div className="max-h-[26.25rem] overflow-y-auto py-1 pe-3">
                     <Form {...form}>
-                        <form id="user-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-0.5">
+                        <form
+                            id="user-form"
+                            onSubmit={form.handleSubmit(
+                                onSubmit,
+                            )}
+                            className="space-y-4 px-0.5"
+                        >
+                            {/* NAME */}
                             <FormField
                                 control={form.control}
-                                name="firstName"
-                                render={({ field }) => (
+                                name="name"
+                                render={({
+                                    field,
+                                }) => (
                                     <FormItem className="grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1">
-                                        <FormLabel className="col-span-2 text-end">First Name</FormLabel>
+                                        <FormLabel className="col-span-2 text-end">
+                                            Name
+                                        </FormLabel>
+
                                         <FormControl>
-                                            <Input placeholder="John" className="col-span-4" autoComplete="off" {...field} />
-                                        </FormControl>
-                                        <FormMessage className="col-span-4 col-start-3" />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="lastName"
-                                render={({ field }) => (
-                                    <FormItem className="grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1">
-                                        <FormLabel className="col-span-2 text-end">Last Name</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="Doe" className="col-span-4" autoComplete="off" {...field} />
-                                        </FormControl>
-                                        <FormMessage className="col-span-4 col-start-3" />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="username"
-                                render={({ field }) => (
-                                    <FormItem className="grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1">
-                                        <FormLabel className="col-span-2 text-end">Username</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="john_doe" className="col-span-4" {...field} />
-                                        </FormControl>
-                                        <FormMessage className="col-span-4 col-start-3" />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="email"
-                                render={({ field }) => (
-                                    <FormItem className="grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1">
-                                        <FormLabel className="col-span-2 text-end">Email</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="john.doe@gmail.com" className="col-span-4" {...field} />
-                                        </FormControl>
-                                        <FormMessage className="col-span-4 col-start-3" />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="phoneNumber"
-                                render={({ field }) => (
-                                    <FormItem className="grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1">
-                                        <FormLabel className="col-span-2 text-end">Phone Number</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="+123456789" className="col-span-4" {...field} />
-                                        </FormControl>
-                                        <FormMessage className="col-span-4 col-start-3" />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="role"
-                                render={({ field }) => (
-                                    <FormItem className="grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1">
-                                        <FormLabel className="col-span-2 text-end">Role</FormLabel>
-                                        <SelectDropdown
-                                            defaultValue={field.value}
-                                            onValueChange={field.onChange}
-                                            placeholder="Select a role"
-                                            className="col-span-4"
-                                            items={roles.map(({ label, value }) => ({
-                                                label,
-                                                value,
-                                            }))}
-                                        />
-                                        <FormMessage className="col-span-4 col-start-3" />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="password"
-                                render={({ field }) => (
-                                    <FormItem className="grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1">
-                                        <FormLabel className="col-span-2 text-end">Password</FormLabel>
-                                        <FormControl>
-                                            <PasswordInput placeholder="e.g., S3cur3P@ssw0rd" className="col-span-4" {...field} />
-                                        </FormControl>
-                                        <FormMessage className="col-span-4 col-start-3" />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="confirmPassword"
-                                render={({ field }) => (
-                                    <FormItem className="grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1">
-                                        <FormLabel className="col-span-2 text-end">Confirm Password</FormLabel>
-                                        <FormControl>
-                                            <PasswordInput
-                                                disabled={!isPasswordTouched}
-                                                placeholder="e.g., S3cur3P@ssw0rd"
+                                            <Input
+                                                placeholder="John Doe"
                                                 className="col-span-4"
+                                                autoComplete="name"
                                                 {...field}
                                             />
                                         </FormControl>
+
+                                        <FormMessage className="col-span-4 col-start-3" />
+                                    </FormItem>
+                                )}
+                            />
+
+                            {/* EMAIL */}
+                            <FormField
+                                control={form.control}
+                                name="email"
+                                render={({
+                                    field,
+                                }) => (
+                                    <FormItem className="grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1">
+                                        <FormLabel className="col-span-2 text-end">
+                                            Email
+                                        </FormLabel>
+
+                                        <FormControl>
+                                            <Input
+                                                type="email"
+                                                placeholder="john.doe@gmail.com"
+                                                className="col-span-4"
+                                                autoComplete="email"
+                                                {...field}
+                                            />
+                                        </FormControl>
+
+                                        <FormMessage className="col-span-4 col-start-3" />
+                                    </FormItem>
+                                )}
+                            />
+
+                            {/* PASSWORD */}
+                            <FormField
+                                control={form.control}
+                                name="password"
+                                render={({
+                                    field,
+                                }) => (
+                                    <FormItem className="grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1">
+                                        <FormLabel className="col-span-2 text-end">
+                                            Password
+                                        </FormLabel>
+
+                                        <FormControl>
+                                            <PasswordInput
+                                                placeholder={
+                                                    isEdit
+                                                        ? 'Leave blank to keep current password'
+                                                        : 'Enter password'
+                                                }
+                                                className="col-span-4"
+                                                autoComplete="new-password"
+                                                {...field}
+                                            />
+                                        </FormControl>
+
+                                        <FormMessage className="col-span-4 col-start-3" />
+                                    </FormItem>
+                                )}
+                            />
+
+                            {/* CONFIRM PASSWORD */}
+                            <FormField
+                                control={form.control}
+                                name="password_confirmation"
+                                render={({
+                                    field,
+                                }) => (
+                                    <FormItem className="grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1">
+                                        <FormLabel className="col-span-2 text-end">
+                                            Confirm Password
+                                        </FormLabel>
+
+                                        <FormControl>
+                                            <PasswordInput
+                                                disabled={
+                                                    !isPasswordTouched &&
+                                                    !isEdit
+                                                }
+                                                placeholder="Confirm password"
+                                                className="col-span-4"
+                                                autoComplete="new-password"
+                                                {...field}
+                                            />
+                                        </FormControl>
+
                                         <FormMessage className="col-span-4 col-start-3" />
                                     </FormItem>
                                 )}
@@ -255,9 +483,29 @@ export function UsersActionDialog({ currentRow, open, onOpenChange }: UserAction
                         </form>
                     </Form>
                 </div>
+
                 <DialogFooter>
-                    <Button type="submit" form="user-form">
-                        Save changes
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                            handleClose(false)
+                        }
+                        disabled={processing}
+                    >
+                        Cancel
+                    </Button>
+
+                    <Button
+                        type="submit"
+                        form="user-form"
+                        disabled={processing}
+                    >
+                        {processing
+                            ? 'Saving...'
+                            : isEdit
+                              ? 'Save changes'
+                              : 'Create User'}
                     </Button>
                 </DialogFooter>
             </DialogContent>
