@@ -12,6 +12,8 @@ interface CompanyFeatureProps {
     storeUrl: string;
     updateBaseUrl: string;
     viewBaseUrl: string;
+    returnTo?: string | null;
+    ownerUserId?: number | string | null;
 }
 
 export function CompanyFeature({
@@ -19,6 +21,8 @@ export function CompanyFeature({
     storeUrl,
     updateBaseUrl,
     viewBaseUrl,
+    returnTo = null,
+    ownerUserId = null,
 }: CompanyFeatureProps) {
     const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -49,7 +53,6 @@ export function CompanyFeature({
 
     return (
         <div className="space-y-6 p-6">
-            {/* Page Header */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight">
@@ -67,7 +70,6 @@ export function CompanyFeature({
                 </Button>
             </div>
 
-            {/* Companies Table */}
             <div className="rounded-xl border bg-card">
                 <CompanyTable
                     companies={companies ?? []}
@@ -76,13 +78,14 @@ export function CompanyFeature({
                 />
             </div>
 
-            {/* Add / Edit Drawer */}
             <CompanyDrawer
                 open={drawerOpen}
                 onOpenChange={handleDrawerChange}
                 company={selectedCompany}
                 storeUrl={storeUrl}
                 updateBaseUrl={updateBaseUrl}
+                returnTo={returnTo}
+                ownerUserId={ownerUserId}
             />
         </div>
     );

@@ -14,6 +14,9 @@ interface CompanyDrawerProps {
 
     storeUrl: string;
     updateBaseUrl: string;
+
+    returnTo?: string | null;
+    ownerUserId?: number | string | null;
 }
 
 export function CompanyDrawer({
@@ -22,6 +25,8 @@ export function CompanyDrawer({
     company,
     storeUrl,
     updateBaseUrl,
+    returnTo = null,
+    ownerUserId = null,
 }: CompanyDrawerProps) {
     if (!open) {
         return null;
@@ -36,15 +41,12 @@ export function CompanyDrawer({
 
     return (
         <div className="fixed inset-0 z-50">
-            {/* Overlay */}
             <div
                 className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"
                 onClick={() => onOpenChange(false)}
             />
 
-            {/* Drawer */}
             <aside className="absolute right-0 top-0 flex h-full w-full max-w-xl flex-col border-l bg-background shadow-2xl">
-                {/* Header */}
                 <div className="flex items-center justify-between px-6 py-5">
                     <div className="space-y-1">
                         <h2 className="text-lg font-semibold tracking-tight">
@@ -73,12 +75,13 @@ export function CompanyDrawer({
 
                 <Separator />
 
-                {/* Form */}
                 <div className="flex-1 overflow-y-auto">
                     <CompanyForm
                         company={company}
                         storeUrl={storeUrl}
                         updateUrl={updateUrl}
+                        returnTo={returnTo}
+                        ownerUserId={ownerUserId}
                         onSuccess={() => onOpenChange(false)}
                     />
                 </div>

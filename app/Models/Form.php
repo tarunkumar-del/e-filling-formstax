@@ -36,11 +36,6 @@ class Form extends Model
         return $this->belongsTo(Contractor::class);
     }
 
-    public function formDefinition(): BelongsTo
-    {
-        return $this->belongsTo(FormDefinition::class);
-    }
-
     public function fieldValues(): HasMany
     {
         return $this->hasMany(FormFieldValue::class);

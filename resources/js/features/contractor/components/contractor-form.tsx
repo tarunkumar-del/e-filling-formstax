@@ -4,6 +4,7 @@ import { useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
 import {
     Select,
     SelectContent,
@@ -54,6 +55,12 @@ interface ContractorFormData {
     postal: string;
     phone: string;
     email: string;
+
+    /*
+     * Tax Form return context.
+     */
+    return_to?: string;
+    user_id?: number;
 }
 
 export function ContractorForm({
@@ -62,46 +69,110 @@ export function ContractorForm({
     isAdmin = false,
     onSuccess,
 }: ContractorFormProps) {
-    const [countries, setCountries] = useState<Country[]>([]);
-    const [regions, setRegions] = useState<CountryRegion[]>([]);
-    const [cities, setCities] = useState<CountryCity[]>([]);
+    const [countries, setCountries] =
+        useState<Country[]>([]);
 
-    const [countriesLoading, setCountriesLoading] = useState(false);
-    const [regionsLoading, setRegionsLoading] = useState(false);
-    const [citiesLoading, setCitiesLoading] = useState(false);
+    const [regions, setRegions] =
+        useState<CountryRegion[]>([]);
 
-    const { data, setData, post, put, processing, errors, reset } =
-        useForm<ContractorFormData>({
-            tax_id_type: contractor?.tax_id_type ?? 'TIN',
-            tax_id: contractor?.tax_id ?? '',
+    const [cities, setCities] =
+        useState<CountryCity[]>([]);
 
-            first_name: contractor?.first_name ?? '',
-            middle_initial: contractor?.middle_initial ?? '',
-            last_name: contractor?.last_name ?? '',
-            suffix: contractor?.suffix ?? '',
+    const [countriesLoading, setCountriesLoading] =
+        useState(false);
 
-            business_entity_name:
-                contractor?.business_entity_name ?? '',
+    const [regionsLoading, setRegionsLoading] =
+        useState(false);
 
-            address_1: contractor?.address_1 ?? '',
-            address_2: contractor?.address_2 ?? '',
+    const [citiesLoading, setCitiesLoading] =
+        useState(false);
 
-            country_id: contractor?.country_id
+    /*
+    |--------------------------------------------------------------------------
+    | Tax Form Return Context
+    |--------------------------------------------------------------------------
+    */
+
+    const searchParams = new URLSearchParams(
+        window.location.search,
+    );
+
+    const returnTo = searchParams.get('return_to');
+
+    const ownerUserId = searchParams.get('user_id');
+
+    const {
+        data,
+        setData,
+        post,
+        put,
+        processing,
+        errors,
+        reset,
+    } = useForm<ContractorFormData>({
+        tax_id_type:
+            contractor?.tax_id_type ?? 'TIN',
+
+        tax_id:
+            contractor?.tax_id ?? '',
+
+        first_name:
+            contractor?.first_name ?? '',
+
+        middle_initial:
+            contractor?.middle_initial ?? '',
+
+        last_name:
+            contractor?.last_name ?? '',
+
+        suffix:
+            contractor?.suffix ?? '',
+
+        business_entity_name:
+            contractor?.business_entity_name ?? '',
+
+        address_1:
+            contractor?.address_1 ?? '',
+
+        address_2:
+            contractor?.address_2 ?? '',
+
+        country_id:
+            contractor?.country_id
                 ? String(contractor.country_id)
                 : '',
 
-            region_id: contractor?.region_id
+        region_id:
+            contractor?.region_id
                 ? String(contractor.region_id)
                 : '',
 
-            city_id: contractor?.city_id
+        city_id:
+            contractor?.city_id
                 ? String(contractor.city_id)
                 : '',
 
-            postal: contractor?.postal ?? '',
-            phone: contractor?.phone ?? '',
-            email: contractor?.email ?? '',
-        });
+        postal:
+            contractor?.postal ?? '',
+
+        phone:
+            contractor?.phone ?? '',
+
+        email:
+            contractor?.email ?? '',
+
+        ...(returnTo
+            ? {
+                  return_to: returnTo,
+              }
+            : {}),
+
+        ...(ownerUserId
+            ? {
+                  user_id: Number(ownerUserId),
+              }
+            : {}),
+    });
 
     /*
     |--------------------------------------------------------------------------
@@ -116,7 +187,8 @@ export function ContractorForm({
             setCountriesLoading(true);
 
             try {
-                const result = await fetchCountries();
+                const result =
+                    await fetchCountries();
 
                 if (cancelled) {
                     return;
@@ -125,7 +197,9 @@ export function ContractorForm({
                 setCountries(
                     Array.isArray(result)
                         ? result
-                        : Array.isArray(result?.countries)
+                        : Array.isArray(
+                              result?.countries,
+                          )
                           ? result.countries
                           : [],
                 );
@@ -164,6 +238,7 @@ export function ContractorForm({
         if (!data.country_id) {
             setRegions([]);
             setCities([]);
+
             return;
         }
 
@@ -171,9 +246,10 @@ export function ContractorForm({
             setRegionsLoading(true);
 
             try {
-                const result = await fetchRegions(
-                    Number(data.country_id),
-                );
+                const result =
+                    await fetchRegions(
+                        Number(data.country_id),
+                    );
 
                 if (cancelled) {
                     return;
@@ -182,7 +258,9 @@ export function ContractorForm({
                 setRegions(
                     Array.isArray(result)
                         ? result
-                        : Array.isArray(result?.regions)
+                        : Array.isArray(
+                              result?.regions,
+                          )
                           ? result.regions
                           : [],
                 );
@@ -220,6 +298,7 @@ export function ContractorForm({
 
         if (!data.region_id) {
             setCities([]);
+
             return;
         }
 
@@ -227,9 +306,10 @@ export function ContractorForm({
             setCitiesLoading(true);
 
             try {
-                const result = await fetchCities(
-                    Number(data.region_id),
-                );
+                const result =
+                    await fetchCities(
+                        Number(data.region_id),
+                    );
 
                 if (cancelled) {
                     return;
@@ -238,7 +318,9 @@ export function ContractorForm({
                 setCities(
                     Array.isArray(result)
                         ? result
-                        : Array.isArray(result?.cities)
+                        : Array.isArray(
+                              result?.cities,
+                          )
                           ? result.cities
                           : [],
                 );
@@ -275,9 +357,13 @@ export function ContractorForm({
         () =>
             countries.find(
                 (country) =>
-                    String(country.id) === data.country_id,
+                    String(country.id) ===
+                    data.country_id,
             ),
-        [countries, data.country_id],
+        [
+            countries,
+            data.country_id,
+        ],
     );
 
     /*
@@ -287,10 +373,12 @@ export function ContractorForm({
     */
 
     const regionLabel =
-        selectedCountry?.region_label ?? 'State';
+        selectedCountry?.region_label ??
+        'State';
 
     const postalLabel =
-        selectedCountry?.postal_label ?? 'Postal Code';
+        selectedCountry?.postal_label ??
+        'Postal Code';
 
     /*
     |--------------------------------------------------------------------------
@@ -322,8 +410,14 @@ export function ContractorForm({
 
         const options = {
             preserveScroll: true,
+
             onSuccess: () => {
-                if (!contractor) {
+                /*
+                 * When returning to Tax Form, backend redirects
+                 * away from this page. For normal creation,
+                 * preserve the existing reset behaviour.
+                 */
+                if (!contractor && !returnTo) {
                     reset();
                 }
 
@@ -357,14 +451,18 @@ export function ContractorForm({
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                    {/* Tax ID Type */}
-
                     <div className="space-y-2">
-                        <Label>Tax ID Type</Label>
+                        <Label>
+                            Tax ID Type
+                        </Label>
 
                         <Select
-                            value={data.tax_id_type}
-                            onValueChange={(value) =>
+                            value={
+                                data.tax_id_type
+                            }
+                            onValueChange={(
+                                value,
+                            ) =>
                                 setData(
                                     'tax_id_type',
                                     value as TaxIdType,
@@ -400,19 +498,25 @@ export function ContractorForm({
 
                         {errors.tax_id_type && (
                             <p className="text-sm text-destructive">
-                                {errors.tax_id_type}
+                                {
+                                    errors.tax_id_type
+                                }
                             </p>
                         )}
                     </div>
 
-                    {/* Tax ID */}
-
                     <div className="space-y-2">
-                        <Label>Tax ID</Label>
+                        <Label>
+                            Tax ID
+                        </Label>
 
                         <Input
-                            value={data.tax_id}
-                            onChange={(event) =>
+                            value={
+                                data.tax_id
+                            }
+                            onChange={(
+                                event,
+                            ) =>
                                 setData(
                                     'tax_id',
                                     event.target.value,
@@ -425,7 +529,9 @@ export function ContractorForm({
 
                         {errors.tax_id && (
                             <p className="text-sm text-destructive">
-                                {errors.tax_id}
+                                {
+                                    errors.tax_id
+                                }
                             </p>
                         )}
                     </div>
@@ -444,14 +550,18 @@ export function ContractorForm({
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-4">
-                    {/* First Name */}
-
                     <div className="space-y-2">
-                        <Label>First Name</Label>
+                        <Label>
+                            First Name
+                        </Label>
 
                         <Input
-                            value={data.first_name}
-                            onChange={(event) =>
+                            value={
+                                data.first_name
+                            }
+                            onChange={(
+                                event,
+                            ) =>
                                 setData(
                                     'first_name',
                                     event.target.value,
@@ -464,19 +574,25 @@ export function ContractorForm({
 
                         {errors.first_name && (
                             <p className="text-sm text-destructive">
-                                {errors.first_name}
+                                {
+                                    errors.first_name
+                                }
                             </p>
                         )}
                     </div>
 
-                    {/* Middle Initial */}
-
                     <div className="space-y-2">
-                        <Label>Middle Initial</Label>
+                        <Label>
+                            Middle Initial
+                        </Label>
 
                         <Input
-                            value={data.middle_initial}
-                            onChange={(event) =>
+                            value={
+                                data.middle_initial
+                            }
+                            onChange={(
+                                event,
+                            ) =>
                                 setData(
                                     'middle_initial',
                                     event.target.value,
@@ -489,19 +605,25 @@ export function ContractorForm({
 
                         {errors.middle_initial && (
                             <p className="text-sm text-destructive">
-                                {errors.middle_initial}
+                                {
+                                    errors.middle_initial
+                                }
                             </p>
                         )}
                     </div>
 
-                    {/* Last Name */}
-
                     <div className="space-y-2">
-                        <Label>Last Name</Label>
+                        <Label>
+                            Last Name
+                        </Label>
 
                         <Input
-                            value={data.last_name}
-                            onChange={(event) =>
+                            value={
+                                data.last_name
+                            }
+                            onChange={(
+                                event,
+                            ) =>
                                 setData(
                                     'last_name',
                                     event.target.value,
@@ -514,19 +636,25 @@ export function ContractorForm({
 
                         {errors.last_name && (
                             <p className="text-sm text-destructive">
-                                {errors.last_name}
+                                {
+                                    errors.last_name
+                                }
                             </p>
                         )}
                     </div>
 
-                    {/* Suffix */}
-
                     <div className="space-y-2">
-                        <Label>Suffix</Label>
+                        <Label>
+                            Suffix
+                        </Label>
 
                         <Input
-                            value={data.suffix}
-                            onChange={(event) =>
+                            value={
+                                data.suffix
+                            }
+                            onChange={(
+                                event,
+                            ) =>
                                 setData(
                                     'suffix',
                                     event.target.value,
@@ -540,13 +668,13 @@ export function ContractorForm({
 
                         {errors.suffix && (
                             <p className="text-sm text-destructive">
-                                {errors.suffix}
+                                {
+                                    errors.suffix
+                                }
                             </p>
                         )}
                     </div>
                 </div>
-
-                {/* Business / Entity Name */}
 
                 <div className="space-y-2">
                     <Label>
@@ -554,8 +682,12 @@ export function ContractorForm({
                     </Label>
 
                     <Input
-                        value={data.business_entity_name}
-                        onChange={(event) =>
+                        value={
+                            data.business_entity_name
+                        }
+                        onChange={(
+                            event,
+                        ) =>
                             setData(
                                 'business_entity_name',
                                 event.target.value,
@@ -568,7 +700,9 @@ export function ContractorForm({
 
                     {errors.business_entity_name && (
                         <p className="text-sm text-destructive">
-                            {errors.business_entity_name}
+                            {
+                                errors.business_entity_name
+                            }
                         </p>
                     )}
                 </div>
@@ -585,14 +719,18 @@ export function ContractorForm({
                     </h3>
                 </div>
 
-                {/* Address 1 */}
-
                 <div className="space-y-2">
-                    <Label>Address 1</Label>
+                    <Label>
+                        Address 1
+                    </Label>
 
                     <Input
-                        value={data.address_1}
-                        onChange={(event) =>
+                        value={
+                            data.address_1
+                        }
+                        onChange={(
+                            event,
+                        ) =>
                             setData(
                                 'address_1',
                                 event.target.value,
@@ -605,19 +743,25 @@ export function ContractorForm({
 
                     {errors.address_1 && (
                         <p className="text-sm text-destructive">
-                            {errors.address_1}
+                            {
+                                errors.address_1
+                            }
                         </p>
                     )}
                 </div>
 
-                {/* Address 2 */}
-
                 <div className="space-y-2">
-                    <Label>Address 2</Label>
+                    <Label>
+                        Address 2
+                    </Label>
 
                     <Input
-                        value={data.address_2}
-                        onChange={(event) =>
+                        value={
+                            data.address_2
+                        }
+                        onChange={(
+                            event,
+                        ) =>
                             setData(
                                 'address_2',
                                 event.target.value,
@@ -630,30 +774,36 @@ export function ContractorForm({
 
                     {errors.address_2 && (
                         <p className="text-sm text-destructive">
-                            {errors.address_2}
+                            {
+                                errors.address_2
+                            }
                         </p>
                     )}
                 </div>
 
-                {/* Country / Region */}
-
                 <div className="grid gap-4 md:grid-cols-2">
-                    {/* Country */}
-
                     <div className="space-y-2">
-                        <Label>Country</Label>
+                        <Label>
+                            Country
+                        </Label>
 
                         <Select
-                            value={data.country_id}
-                            onValueChange={(value) => {
+                            value={
+                                data.country_id
+                            }
+                            onValueChange={(
+                                value,
+                            ) => {
                                 setData(
                                     'country_id',
                                     value,
                                 );
+
                                 setData(
                                     'region_id',
                                     '',
                                 );
+
                                 setData(
                                     'city_id',
                                     '',
@@ -676,14 +826,20 @@ export function ContractorForm({
 
                             <SelectContent className="max-h-72">
                                 {countries.map(
-                                    (country) => (
+                                    (
+                                        country,
+                                    ) => (
                                         <SelectItem
-                                            key={country.id}
+                                            key={
+                                                country.id
+                                            }
                                             value={String(
                                                 country.id,
                                             )}
                                         >
-                                            {country.name}
+                                            {
+                                                country.name
+                                            }
                                         </SelectItem>
                                     ),
                                 )}
@@ -692,23 +848,30 @@ export function ContractorForm({
 
                         {errors.country_id && (
                             <p className="text-sm text-destructive">
-                                {errors.country_id}
+                                {
+                                    errors.country_id
+                                }
                             </p>
                         )}
                     </div>
 
-                    {/* Region */}
-
                     <div className="space-y-2">
-                        <Label>{regionLabel}</Label>
+                        <Label>
+                            {regionLabel}
+                        </Label>
 
                         <Select
-                            value={data.region_id}
-                            onValueChange={(value) => {
+                            value={
+                                data.region_id
+                            }
+                            onValueChange={(
+                                value,
+                            ) => {
                                 setData(
                                     'region_id',
                                     value,
                                 );
+
                                 setData(
                                     'city_id',
                                     '',
@@ -735,14 +898,20 @@ export function ContractorForm({
 
                             <SelectContent className="max-h-72">
                                 {regions.map(
-                                    (region) => (
+                                    (
+                                        region,
+                                    ) => (
                                         <SelectItem
-                                            key={region.id}
+                                            key={
+                                                region.id
+                                            }
                                             value={String(
                                                 region.id,
                                             )}
                                         >
-                                            {region.name}
+                                            {
+                                                region.name
+                                            }
                                         </SelectItem>
                                     ),
                                 )}
@@ -751,23 +920,27 @@ export function ContractorForm({
 
                         {errors.region_id && (
                             <p className="text-sm text-destructive">
-                                {errors.region_id}
+                                {
+                                    errors.region_id
+                                }
                             </p>
                         )}
                     </div>
                 </div>
 
-                {/* City / Postal */}
-
                 <div className="grid gap-4 md:grid-cols-2">
-                    {/* City */}
-
                     <div className="space-y-2">
-                        <Label>City</Label>
+                        <Label>
+                            City
+                        </Label>
 
                         <Select
-                            value={data.city_id}
-                            onValueChange={(value) =>
+                            value={
+                                data.city_id
+                            }
+                            onValueChange={(
+                                value,
+                            ) =>
                                 setData(
                                     'city_id',
                                     value,
@@ -793,34 +966,48 @@ export function ContractorForm({
                             </SelectTrigger>
 
                             <SelectContent className="max-h-72">
-                                {cities.map((city) => (
-                                    <SelectItem
-                                        key={city.id}
-                                        value={String(
-                                            city.id,
-                                        )}
-                                    >
-                                        {city.name}
-                                    </SelectItem>
-                                ))}
+                                {cities.map(
+                                    (
+                                        city,
+                                    ) => (
+                                        <SelectItem
+                                            key={
+                                                city.id
+                                            }
+                                            value={String(
+                                                city.id,
+                                            )}
+                                        >
+                                            {
+                                                city.name
+                                            }
+                                        </SelectItem>
+                                    ),
+                                )}
                             </SelectContent>
                         </Select>
 
                         {errors.city_id && (
                             <p className="text-sm text-destructive">
-                                {errors.city_id}
+                                {
+                                    errors.city_id
+                                }
                             </p>
                         )}
                     </div>
 
-                    {/* Postal */}
-
                     <div className="space-y-2">
-                        <Label>{postalLabel}</Label>
+                        <Label>
+                            {postalLabel}
+                        </Label>
 
                         <Input
-                            value={data.postal}
-                            onChange={(event) =>
+                            value={
+                                data.postal
+                            }
+                            onChange={(
+                                event,
+                            ) =>
                                 setData(
                                     'postal',
                                     event.target.value,
@@ -833,7 +1020,9 @@ export function ContractorForm({
 
                         {errors.postal && (
                             <p className="text-sm text-destructive">
-                                {errors.postal}
+                                {
+                                    errors.postal
+                                }
                             </p>
                         )}
                     </div>
@@ -852,14 +1041,18 @@ export function ContractorForm({
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                    {/* Phone */}
-
                     <div className="space-y-2">
-                        <Label>Phone</Label>
+                        <Label>
+                            Phone
+                        </Label>
 
                         <Input
-                            value={data.phone}
-                            onChange={(event) =>
+                            value={
+                                data.phone
+                            }
+                            onChange={(
+                                event,
+                            ) =>
                                 setData(
                                     'phone',
                                     event.target.value,
@@ -872,20 +1065,26 @@ export function ContractorForm({
 
                         {errors.phone && (
                             <p className="text-sm text-destructive">
-                                {errors.phone}
+                                {
+                                    errors.phone
+                                }
                             </p>
                         )}
                     </div>
 
-                    {/* Email */}
-
                     <div className="space-y-2">
-                        <Label>Email</Label>
+                        <Label>
+                            Email
+                        </Label>
 
                         <Input
                             type="email"
-                            value={data.email}
-                            onChange={(event) =>
+                            value={
+                                data.email
+                            }
+                            onChange={(
+                                event,
+                            ) =>
                                 setData(
                                     'email',
                                     event.target.value,
@@ -898,7 +1097,9 @@ export function ContractorForm({
 
                         {errors.email && (
                             <p className="text-sm text-destructive">
-                                {errors.email}
+                                {
+                                    errors.email
+                                }
                             </p>
                         )}
                     </div>

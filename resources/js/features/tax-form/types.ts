@@ -82,8 +82,25 @@ export interface CreateFormContractor {
     region_id: number | null;
     city_id: number | null;
 
+    country?: {
+        id: number;
+        name: string;
+        code?: string | null;
+    } | null;
+
+    region?: {
+        id: number;
+        name: string;
+        code?: string | null;
+    } | null;
+
+    city?: {
+        id: number;
+        name: string;
+        code?: string | null;
+    } | null;
+
     postal_code: string | null;
 
     phone: string | null;
     email: string | null;
-}

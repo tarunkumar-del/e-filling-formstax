@@ -29,6 +29,13 @@ interface CompanyFormData {
     phone: string;
     email: string;
     payer_contact_name: string;
+
+    /*
+     * These are only populated when the form was opened
+     * from the Tax Form creation flow.
+     */
+    return_to?: string;
+    user_id?: number;
 }
 
 export function CompanyForm({
@@ -38,6 +45,20 @@ export function CompanyForm({
     onSuccess,
 }: CompanyFormProps) {
     const isEdit = Boolean(company);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tax Form Return Context
+    |--------------------------------------------------------------------------
+    */
+
+    const searchParams = new URLSearchParams(
+        window.location.search,
+    );
+
+    const returnTo = searchParams.get('return_to');
+
+    const ownerUserId = searchParams.get('user_id');
 
     const form = useForm<CompanyFormData>({
         tax_id_type: 'TIN',
@@ -54,6 +75,18 @@ export function CompanyForm({
         phone: '',
         email: '',
         payer_contact_name: '',
+
+        ...(returnTo
+            ? {
+                  return_to: returnTo,
+              }
+            : {}),
+
+        ...(ownerUserId
+            ? {
+                  user_id: Number(ownerUserId),
+              }
+            : {}),
     });
 
     /*
@@ -72,7 +105,8 @@ export function CompanyForm({
             tax_id: company.tax_id,
             payer_first_name: company.payer_first_name,
             payer_last_name: company.payer_last_name,
-            business_entity_name: company.business_entity_name,
+            business_entity_name:
+                company.business_entity_name,
             address_1: company.address_1,
             address_2: company.address_2 ?? '',
             country: company.country,
@@ -81,7 +115,8 @@ export function CompanyForm({
             zip_code: company.zip_code,
             phone: company.phone,
             email: company.email,
-            payer_contact_name: company.payer_contact_name,
+            payer_contact_name:
+                company.payer_contact_name,
         });
     }, [company]);
 
@@ -92,7 +127,7 @@ export function CompanyForm({
     */
 
     const fieldError = (
-        field: keyof CompanyFormData
+        field: keyof CompanyFormData,
     ) => {
         const error = form.errors[field];
 
@@ -114,7 +149,7 @@ export function CompanyForm({
     */
 
     const fieldClassName = (
-        field: keyof CompanyFormData
+        field: keyof CompanyFormData,
     ) => {
         if (form.errors[field]) {
             return 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500';
@@ -130,7 +165,7 @@ export function CompanyForm({
     */
 
     const handleSubmit = (
-        e: React.FormEvent
+        e: React.FormEvent,
     ) => {
         e.preventDefault();
 
@@ -147,42 +182,18 @@ export function CompanyForm({
             updateUrl &&
             company
         ) {
-            console.log('MODE: edit');
-            console.log(
-                'UPDATE URL:',
-                updateUrl
-            );
-            console.log(
-                'COMPANY:',
-                company
-            );
-            console.log(
-                'COMPANY DATA:',
-                form.data
-            );
-
             form.put(updateUrl, {
                 preserveScroll: true,
 
                 onError: (errors) => {
                     console.log(
                         'COMPANY UPDATE BACKEND ERRORS:',
-                        errors
+                        errors,
                     );
                 },
 
                 onSuccess: () => {
-                    console.log(
-                        'COMPANY UPDATE SUCCESS'
-                    );
-
                     onSuccess?.();
-                },
-
-                onFinish: () => {
-                    console.log(
-                        'COMPANY UPDATE FINISHED'
-                    );
                 },
             });
 
@@ -195,49 +206,43 @@ export function CompanyForm({
         |--------------------------------------------------------------------------
         */
 
-        console.log('MODE: create');
-        console.log(
-            'STORE URL:',
-            storeUrl
-        );
-        console.log(
-            'COMPANY DATA:',
-            form.data
-        );
-
         form.post(storeUrl, {
             preserveScroll: true,
 
             onError: (errors) => {
                 console.log(
                     'COMPANY CREATE BACKEND ERRORS:',
-                    errors
+                    errors,
                 );
             },
 
             onSuccess: () => {
-                console.log(
-                    'COMPANY CREATE SUCCESS'
-                );
+                /*
+                 * When the backend redirects to the Tax Form,
+                 * this callback will not continue the normal
+                 * Company-page flow. For the normal Company page,
+                 * the existing reset behaviour remains.
+                 */
+                if (!returnTo) {
+                    form.reset();
 
-                form.reset();
+                    form.setData(
+                        'tax_id_type',
+                        'TIN',
+                    );
 
-                form.setData(
-                    'tax_id_type',
-                    'TIN'
-                );
-
-                form.setData(
-                    'country',
-                    'United States'
-                );
+                    form.setData(
+                        'country',
+                        'United States',
+                    );
+                }
 
                 onSuccess?.();
             },
 
             onFinish: () => {
                 console.log(
-                    'COMPANY CREATE FINISHED'
+                    'COMPANY CREATE FINISHED',
                 );
             },
         });
@@ -269,8 +274,6 @@ export function CompanyForm({
                     </p>
                 </div>
 
-                {/* Tax ID Type */}
-
                 <div className="space-y-2">
                     <Label htmlFor="tax_id_type">
                         Tax ID Type
@@ -284,11 +287,10 @@ export function CompanyForm({
                         onChange={(e) =>
                             form.setData(
                                 'tax_id_type',
-                                e.target
-                                    .value as
+                                e.target.value as
                                     | 'TIN'
                                     | 'EIN'
-                                    | 'SSN'
+                                    | 'SSN',
                             )
                         }
                         className={`flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ${
@@ -312,11 +314,9 @@ export function CompanyForm({
                     </select>
 
                     {fieldError(
-                        'tax_id_type'
+                        'tax_id_type',
                     )}
                 </div>
-
-                {/* Tax ID */}
 
                 <div className="space-y-2">
                     <Label htmlFor="tax_id">
@@ -331,11 +331,11 @@ export function CompanyForm({
                         onChange={(e) =>
                             form.setData(
                                 'tax_id',
-                                e.target.value
+                                e.target.value,
                             )
                         }
                         className={fieldClassName(
-                            'tax_id'
+                            'tax_id',
                         )}
                     />
 
@@ -358,11 +358,7 @@ export function CompanyForm({
                     </p>
                 </div>
 
-                {/* First Name + Last Name */}
-
                 <div className="grid gap-4 sm:grid-cols-2">
-                    {/* First Name */}
-
                     <div className="space-y-2">
                         <Label htmlFor="payer_first_name">
                             First Name
@@ -377,20 +373,18 @@ export function CompanyForm({
                             onChange={(e) =>
                                 form.setData(
                                     'payer_first_name',
-                                    e.target.value
+                                    e.target.value,
                                 )
                             }
                             className={fieldClassName(
-                                'payer_first_name'
+                                'payer_first_name',
                             )}
                         />
 
                         {fieldError(
-                            'payer_first_name'
+                            'payer_first_name',
                         )}
                     </div>
-
-                    {/* Last Name */}
 
                     <div className="space-y-2">
                         <Label htmlFor="payer_last_name">
@@ -406,21 +400,19 @@ export function CompanyForm({
                             onChange={(e) =>
                                 form.setData(
                                     'payer_last_name',
-                                    e.target.value
+                                    e.target.value,
                                 )
                             }
                             className={fieldClassName(
-                                'payer_last_name'
+                                'payer_last_name',
                             )}
                         />
 
                         {fieldError(
-                            'payer_last_name'
+                            'payer_last_name',
                         )}
                     </div>
                 </div>
-
-                {/* Business Entity Name */}
 
                 <div className="space-y-2">
                     <Label htmlFor="business_entity_name">
@@ -436,16 +428,16 @@ export function CompanyForm({
                         onChange={(e) =>
                             form.setData(
                                 'business_entity_name',
-                                e.target.value
+                                e.target.value,
                             )
                         }
                         className={fieldClassName(
-                            'business_entity_name'
+                            'business_entity_name',
                         )}
                     />
 
                     {fieldError(
-                        'business_entity_name'
+                        'business_entity_name',
                     )}
                 </div>
             </div>
@@ -465,8 +457,6 @@ export function CompanyForm({
                     </p>
                 </div>
 
-                {/* Address Line 1 */}
-
                 <div className="space-y-2">
                     <Label htmlFor="address_1">
                         Address Line 1
@@ -480,20 +470,16 @@ export function CompanyForm({
                         onChange={(e) =>
                             form.setData(
                                 'address_1',
-                                e.target.value
+                                e.target.value,
                             )
                         }
                         className={fieldClassName(
-                            'address_1'
+                            'address_1',
                         )}
                     />
 
-                    {fieldError(
-                        'address_1'
-                    )}
+                    {fieldError('address_1')}
                 </div>
-
-                {/* Address Line 2 */}
 
                 <div className="space-y-2">
                     <Label htmlFor="address_2">
@@ -508,24 +494,18 @@ export function CompanyForm({
                         onChange={(e) =>
                             form.setData(
                                 'address_2',
-                                e.target.value
+                                e.target.value,
                             )
                         }
                         className={fieldClassName(
-                            'address_2'
+                            'address_2',
                         )}
                     />
 
-                    {fieldError(
-                        'address_2'
-                    )}
+                    {fieldError('address_2')}
                 </div>
 
-                {/* Country + City */}
-
                 <div className="grid gap-4 sm:grid-cols-2">
-                    {/* Country */}
-
                     <div className="space-y-2">
                         <Label htmlFor="country">
                             Country
@@ -539,20 +519,16 @@ export function CompanyForm({
                             onChange={(e) =>
                                 form.setData(
                                     'country',
-                                    e.target.value
+                                    e.target.value,
                                 )
                             }
                             className={fieldClassName(
-                                'country'
+                                'country',
                             )}
                         />
 
-                        {fieldError(
-                            'country'
-                        )}
+                        {fieldError('country')}
                     </div>
-
-                    {/* City */}
 
                     <div className="space-y-2">
                         <Label htmlFor="city">
@@ -567,11 +543,11 @@ export function CompanyForm({
                             onChange={(e) =>
                                 form.setData(
                                     'city',
-                                    e.target.value
+                                    e.target.value,
                                 )
                             }
                             className={fieldClassName(
-                                'city'
+                                'city',
                             )}
                         />
 
@@ -579,11 +555,7 @@ export function CompanyForm({
                     </div>
                 </div>
 
-                {/* State + ZIP */}
-
                 <div className="grid gap-4 sm:grid-cols-2">
-                    {/* State */}
-
                     <div className="space-y-2">
                         <Label htmlFor="state">
                             State
@@ -597,20 +569,16 @@ export function CompanyForm({
                             onChange={(e) =>
                                 form.setData(
                                     'state',
-                                    e.target.value
+                                    e.target.value,
                                 )
                             }
                             className={fieldClassName(
-                                'state'
+                                'state',
                             )}
                         />
 
-                        {fieldError(
-                            'state'
-                        )}
+                        {fieldError('state')}
                     </div>
-
-                    {/* ZIP Code */}
 
                     <div className="space-y-2">
                         <Label htmlFor="zip_code">
@@ -625,17 +593,15 @@ export function CompanyForm({
                             onChange={(e) =>
                                 form.setData(
                                     'zip_code',
-                                    e.target.value
+                                    e.target.value,
                                 )
                             }
                             className={fieldClassName(
-                                'zip_code'
+                                'zip_code',
                             )}
                         />
 
-                        {fieldError(
-                            'zip_code'
-                        )}
+                        {fieldError('zip_code')}
                     </div>
                 </div>
             </div>
@@ -655,8 +621,6 @@ export function CompanyForm({
                     </p>
                 </div>
 
-                {/* Phone */}
-
                 <div className="space-y-2">
                     <Label htmlFor="phone">
                         Phone
@@ -671,18 +635,16 @@ export function CompanyForm({
                         onChange={(e) =>
                             form.setData(
                                 'phone',
-                                e.target.value
+                                e.target.value,
                             )
                         }
                         className={fieldClassName(
-                            'phone'
+                            'phone',
                         )}
                     />
 
                     {fieldError('phone')}
                 </div>
-
-                {/* Email */}
 
                 <div className="space-y-2">
                     <Label htmlFor="email">
@@ -698,18 +660,16 @@ export function CompanyForm({
                         onChange={(e) =>
                             form.setData(
                                 'email',
-                                e.target.value
+                                e.target.value,
                             )
                         }
                         className={fieldClassName(
-                            'email'
+                            'email',
                         )}
                     />
 
                     {fieldError('email')}
                 </div>
-
-                {/* Payer Contact Name */}
 
                 <div className="space-y-2">
                     <Label htmlFor="payer_contact_name">
@@ -725,16 +685,16 @@ export function CompanyForm({
                         onChange={(e) =>
                             form.setData(
                                 'payer_contact_name',
-                                e.target.value
+                                e.target.value,
                             )
                         }
                         className={fieldClassName(
-                            'payer_contact_name'
+                            'payer_contact_name',
                         )}
                     />
 
                     {fieldError(
-                        'payer_contact_name'
+                        'payer_contact_name',
                     )}
                 </div>
             </div>

@@ -37,7 +37,7 @@ class GetCreateFormPageHandler
                 );
 
         return [
-            'form_definition' =>
+            'formDefinition' =>
                 $formDefinition,
 
             'companies' =>

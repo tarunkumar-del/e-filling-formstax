@@ -65,19 +65,23 @@ export function CreateFormSelector({
     const [data, setData] =
         useState<CreateFormOptionsResponse | null>(null);
 
-    const [year, setYear] = useState<number | null>(null);
+    const [year, setYear] =
+        useState<number | null>(null);
 
-    const [search, setSearch] = useState('');
+    const [search, setSearch] =
+        useState('');
 
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] =
+        useState(false);
 
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] =
+        useState<string | null>(null);
 
     /*
-    |--------------------------------------------------------------------------
-    | Admin User Selection
-    |--------------------------------------------------------------------------
-    */
+     |--------------------------------------------------------------------------
+     | Admin User Selection
+     |--------------------------------------------------------------------------
+     */
 
     const [userSelectorOpen, setUserSelectorOpen] =
         useState(false);
@@ -86,10 +90,10 @@ export function CreateFormSelector({
         useState<number | null>(null);
 
     /*
-    |--------------------------------------------------------------------------
-    | Load Forms
-    |--------------------------------------------------------------------------
-    */
+     |--------------------------------------------------------------------------
+     | Load Forms
+     |--------------------------------------------------------------------------
+     */
 
     const loadForms = async (
         selectedYear?: number | null,
@@ -99,7 +103,8 @@ export function CreateFormSelector({
         setError(null);
 
         try {
-            const params = new URLSearchParams();
+            const params =
+                new URLSearchParams();
 
             if (selectedYear) {
                 params.set(
@@ -115,24 +120,28 @@ export function CreateFormSelector({
                 );
             }
 
-            const queryString = params.toString();
+            const queryString =
+                params.toString();
 
-            const response = await fetch(
-                `/admin/tax-forms/create/options${
-                    queryString
-                        ? `?${queryString}`
-                        : ''
-                }`,
-                {
-                    method: 'GET',
-                    headers: {
-                        Accept: 'application/json',
-                        'X-Requested-With':
-                            'XMLHttpRequest',
+            const response =
+                await fetch(
+                    `/admin/tax-forms/create/options${
+                        queryString
+                            ? `?${queryString}`
+                            : ''
+                    }`,
+                    {
+                        method: 'GET',
+                        headers: {
+                            Accept:
+                                'application/json',
+                            'X-Requested-With':
+                                'XMLHttpRequest',
+                        },
+                        credentials:
+                            'same-origin',
                     },
-                    credentials: 'same-origin',
-                },
-            );
+                );
 
             if (!response.ok) {
                 throw new Error(
@@ -146,19 +155,21 @@ export function CreateFormSelector({
             setData(result);
 
             /*
-            |--------------------------------------------------------------------------
-            | First API call
-            |--------------------------------------------------------------------------
-            |
-            | Backend decides the default/latest year.
-            |
-            */
+             |--------------------------------------------------------------------------
+             | First API call
+             |--------------------------------------------------------------------------
+             |
+             | Backend decides the default/latest year.
+             |
+             */
 
             if (
                 selectedYear === undefined &&
                 result.selected_year !== null
             ) {
-                setYear(result.selected_year);
+                setYear(
+                    result.selected_year,
+                );
             }
         } catch (err) {
             setError(
@@ -172,10 +183,10 @@ export function CreateFormSelector({
     };
 
     /*
-    |--------------------------------------------------------------------------
-    | Initial Load
-    |--------------------------------------------------------------------------
-    */
+     |--------------------------------------------------------------------------
+     | Initial Load
+     |--------------------------------------------------------------------------
+     */
 
     useEffect(() => {
         if (!open) {
@@ -192,10 +203,10 @@ export function CreateFormSelector({
     }, [open]);
 
     /*
-    |--------------------------------------------------------------------------
-    | Year Change
-    |--------------------------------------------------------------------------
-    */
+     |--------------------------------------------------------------------------
+     | Year Change
+     |--------------------------------------------------------------------------
+     */
 
     const handleYearChange = (
         selectedYear: number,
@@ -209,10 +220,10 @@ export function CreateFormSelector({
     };
 
     /*
-    |--------------------------------------------------------------------------
-    | Search
-    |--------------------------------------------------------------------------
-    */
+     |--------------------------------------------------------------------------
+     | Search
+     |--------------------------------------------------------------------------
+     */
 
     useEffect(() => {
         if (!open || year === null) {
@@ -232,51 +243,52 @@ export function CreateFormSelector({
     }, [search]);
 
     /*
-    |--------------------------------------------------------------------------
-    | Select Form
-    |--------------------------------------------------------------------------
-    */
+     |--------------------------------------------------------------------------
+     | Select Form
+     |--------------------------------------------------------------------------
+     */
 
     const handleSelectForm = (
         form: FormOption,
     ) => {
         /*
-        |--------------------------------------------------------------------------
-        | Simple User
-        |--------------------------------------------------------------------------
-        |
-        | Already logged in.
-        | No user popup required.
-        |
-        */
+         |--------------------------------------------------------------------------
+         | Simple User
+         |--------------------------------------------------------------------------
+         |
+         | Already logged in.
+         | No user popup required.
+         |
+         */
 
         if (!isAdmin) {
             onOpenChange(false);
 
-            router.visit(form.create_url);
+            router.visit(
+                form.create_url,
+            );
 
             return;
         }
 
         /*
-        |--------------------------------------------------------------------------
-        | Admin
-        |--------------------------------------------------------------------------
-        |
-        | Admin must first select a simple user.
-        |
-        */
+         |--------------------------------------------------------------------------
+         | Admin
+         |--------------------------------------------------------------------------
+         |
+         | Admin must first select a simple user.
+         |
+         */
 
         setSelectedFormId(form.id);
-
         setUserSelectorOpen(true);
     };
 
     /*
-    |--------------------------------------------------------------------------
-    | Admin User Selected
-    |--------------------------------------------------------------------------
-    */
+     |--------------------------------------------------------------------------
+     | Admin User Selected
+     |--------------------------------------------------------------------------
+     */
 
     const handleUserSelect = (
         user: CreateFormUser,
@@ -285,20 +297,37 @@ export function CreateFormSelector({
             return;
         }
 
-        setUserSelectorOpen(false);
+        const targetUrl =
+            `/admin/tax-forms/create/${selectedFormId}?user_id=${user.id}`;
 
+        /*
+         |--------------------------------------------------------------------------
+         | Close both dialogs first
+         |--------------------------------------------------------------------------
+         */
+
+        setUserSelectorOpen(false);
         onOpenChange(false);
 
-        router.visit(
-            `/admin/tax-forms/create/${selectedFormId}?user_id=${user.id}`,
-        );
+        /*
+         |--------------------------------------------------------------------------
+         | Navigate directly to the tax-form wizard
+         |--------------------------------------------------------------------------
+         |
+         | Use browser navigation here so the Radix Dialog close/unmount
+         | lifecycle cannot interfere with the navigation.
+         |
+         */
+
+        window.location.href =
+            targetUrl;
     };
 
     /*
-    |--------------------------------------------------------------------------
-    | Close Main Dialog
-    |--------------------------------------------------------------------------
-    */
+     |--------------------------------------------------------------------------
+     | Close Main Dialog
+     |--------------------------------------------------------------------------
+     */
 
     const handleMainDialogChange = (
         value: boolean,
@@ -503,7 +532,9 @@ export function CreateFormSelector({
 
             {isAdmin && (
                 <UserSelectorDialog
-                    open={userSelectorOpen}
+                    open={
+                        userSelectorOpen
+                    }
                     onOpenChange={
                         setUserSelectorOpen
                     }
