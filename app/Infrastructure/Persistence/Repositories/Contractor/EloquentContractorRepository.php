@@ -92,4 +92,12 @@ class EloquentContractorRepository implements ContractorRepositoryInterface
     {
         $contractor->delete();
     }
+    public function getByCompanyId(int $companyId): array
+    {
+        return Contractor::query()
+            ->where('company_id', $companyId)
+            ->latest('id')
+            ->get()
+            ->toArray();
+    }
 }

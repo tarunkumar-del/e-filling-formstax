@@ -20,4 +20,5 @@ interface CompanyRepositoryInterface
     public function update(Company $company, array $data): Company;
 
     public function delete(Company $company): void;
+    public function getByUserId(int $userId): array;
 }

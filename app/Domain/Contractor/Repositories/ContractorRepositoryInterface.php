@@ -42,4 +42,5 @@ interface ContractorRepositoryInterface
      * Soft delete a contractor.
      */
     public function delete(Contractor $contractor): void;
+    public function getByCompanyId(int $companyId): array;
 }

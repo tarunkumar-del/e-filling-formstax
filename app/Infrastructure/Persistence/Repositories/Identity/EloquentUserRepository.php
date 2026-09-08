@@ -93,4 +93,18 @@ final class EloquentUserRepository implements UserRepositoryInterface
 
         return $user->refresh();
     }
+    public function getSimpleUsers(): array
+    {
+        return User::query()
+            ->whereDoesntHave('roles', function ($query) {
+                $query->where('name', 'admin');
+            })
+            ->orderBy('name')
+            ->get([
+                'id',
+                'name',
+                'email',
+            ])
+            ->toArray();
+    }
 }

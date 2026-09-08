@@ -24,6 +24,8 @@ use App\Infrastructure\Persistence\Repositories\TaxForm\EloquentFormDefinitionFi
 use App\Domain\TaxForm\Repositories\FormDefinitionRepositoryInterface;
 use App\Infrastructure\Persistence\Repositories\TaxForm\EloquentFormDefinitionRepository;
 
+use App\Domain\TaxForm\Repositories\FormRepositoryInterface;
+use App\Infrastructure\Persistence\Repositories\TaxForm\EloquentFormRepository;
 class RepositoryServiceProvider extends ServiceProvider
 {
     public function register(): void
@@ -58,6 +60,10 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->bind(
             FormDefinitionRepositoryInterface::class,
             EloquentFormDefinitionRepository::class
+        );
+        $this->app->bind(
+            FormRepositoryInterface::class,
+            EloquentFormRepository::class
         );
     }
 

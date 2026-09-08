@@ -29,4 +29,5 @@ interface UserRepositoryInterface
 
     public function delete(User $user): void;
     public function createUser(array $data): User;
+    public function getSimpleUsers(): array;
 }

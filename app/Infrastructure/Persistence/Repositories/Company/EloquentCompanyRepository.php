@@ -53,4 +53,12 @@ final class EloquentCompanyRepository implements CompanyRepositoryInterface
     {
         $company->delete();
     }
+    public function getByUserId(int $userId): array
+    {
+        return Company::query()
+            ->where('user_id', $userId)
+            ->latest('id')
+            ->get()
+            ->toArray();
+    }
 }

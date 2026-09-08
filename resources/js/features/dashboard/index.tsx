@@ -12,7 +12,7 @@ import {
     UserPlus,
     Users,
 } from 'lucide-react';
-
+import { CreateFormSelector } from './components/create-form-selector';
 import { useMemo, useState } from 'react';
 
 import {
@@ -252,6 +252,8 @@ export function Dashboard() {
         'chart' | 'table'
     >('chart');
 
+    const [createFormOpen, setCreateFormOpen] =
+        useState(false);
     /*
     |--------------------------------------------------------------------------
     | Payers
@@ -338,7 +340,7 @@ export function Dashboard() {
                             </p>
                         </div>
 
-                        <Button>
+                        <Button type="button" onClick={() => setCreateFormOpen(true)}>
                             <FileText className="mr-2 size-4" />
                             Create a Form
                         </Button>
@@ -438,12 +440,16 @@ export function Dashboard() {
                                             </div>
 
                                             <Button
+                                                type="button"
                                                 variant="outline"
                                                 className="mt-5 w-full"
+                                                onClick={() => {
+                                                    if (action.action === 'Select Form') {
+                                                        setCreateFormOpen(true);
+                                                    }
+                                                }}
                                             >
-                                                {
-                                                    action.action
-                                                }
+                                                {action.action}
 
                                                 <ArrowRight className="ml-2 size-4 transition-transform group-hover:translate-x-1" />
                                             </Button>
@@ -1066,6 +1072,10 @@ export function Dashboard() {
                     </Card>
                 </div>
             </Main>
+            <CreateFormSelector
+                open={createFormOpen}
+                onOpenChange={setCreateFormOpen}
+            />
         </>
     );
 }

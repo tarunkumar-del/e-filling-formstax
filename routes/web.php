@@ -16,6 +16,34 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\Admin\TaxForm\FormConfigurationController;
 use App\Http\Controllers\Admin\TaxForm\FormDefinitionController;
+use App\Http\Controllers\Admin\TaxForm\CreateFormOptionsController;
+use App\Http\Controllers\TaxForm\GetFormCompaniesController;
+use App\Http\Controllers\Admin\TaxForm\GetSimpleUsersController;
+use App\Http\Controllers\TaxForm\GetFormContractorsController;
+
+Route::middleware('auth')
+    ->group(function () {
+        Route::get(
+            '/tax-forms/create/companies',
+            GetFormCompaniesController::class
+        )->name('tax-forms.create.companies');
+        Route::get(
+            '/tax-forms/create/contractors',
+            GetFormContractorsController::class
+        )->name('tax-forms.create.contractors');
+    });
+
+Route::middleware(['auth', 'role:admin'])
+    ->prefix('admin/tax-forms')
+    ->name('admin.tax-forms.')
+    ->group(function () {
+        Route::get(
+            '/create/users',
+            GetSimpleUsersController::class
+        )->name('create.users');
+    });
+
+
 /*
 |--------------------------------------------------------------------------
 | Location Routes
@@ -358,6 +386,11 @@ Route::middleware(['auth', 'role:admin'])
                     '/{formDefinitionId}/configuration/{formDefinitionFieldId}',
                     [FormConfigurationController::class, 'update']
                 )->name('configuration.update');
+
+                Route::get(
+                    '/create/options',
+                    CreateFormOptionsController::class
+                )->name('create.options');
             });
 
     });
