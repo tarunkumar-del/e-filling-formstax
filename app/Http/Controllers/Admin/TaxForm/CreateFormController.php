@@ -137,6 +137,7 @@ class CreateFormController extends Controller
             'company_id' => ['required', 'integer', 'min:1'],
             'contractor_id' => ['required', 'integer', 'min:1'],
             'field_values' => ['required', 'array'],
+            'form_id' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $ownerUserId = $this->resolveOwnerUserId(
@@ -451,6 +452,8 @@ class CreateFormController extends Controller
             }
         }
 
+        $formId = $request->integer('form_id');
+
         $form = DB::transaction(
             function () use (
                 $handler,
@@ -459,16 +462,37 @@ class CreateFormController extends Controller
                 $contractor,
                 $formDefinitionId,
                 $finalValues,
+                $formId,
             ): Form {
-                $form = $handler->handle(
-                    new CreateFormData(
-                        userId: $ownerUserId,
-                        companyId: $company->id,
-                        formDefinitionId: $formDefinitionId,
-                        contractorId: $contractor->id,
-                        status: 'completed',
-                    ),
-                );
+                if ($formId > 0) {
+                    $form = Form::query()
+                        ->whereKey($formId)
+                        ->where('user_id', $ownerUserId)
+                        ->where('form_definition_id', $formDefinitionId)
+                        ->first();
+
+                    if ($form === null) {
+                        throw ValidationException::withMessages([
+                            'form_id' => 'Invalid tax form.',
+                        ]);
+                    }
+
+                    $form->update([
+                        'company_id' => $company->id,
+                        'contractor_id' => $contractor->id,
+                        'status' => 'completed',
+                    ]);
+                } else {
+                    $form = $handler->handle(
+                        new CreateFormData(
+                            userId: $ownerUserId,
+                            companyId: $company->id,
+                            formDefinitionId: $formDefinitionId,
+                            contractorId: $contractor->id,
+                            status: 'completed',
+                        ),
+                    );
+                }
 
                 foreach ($finalValues as $fieldId => $value) {
                     $fieldId = (int) $fieldId;
@@ -494,19 +518,20 @@ class CreateFormController extends Controller
                     );
                 }
 
-                return $form;
+                return $form->fresh();
             }
         );
 
-        /*
-         * Save & Complete means the workflow is finished. Go to the
-         * admin dashboard instead of reopening the create-form wizard.
-         */
-        return redirect()->to('/admin/dashboard')
-            ->with(
-                'success',
-                'Tax form created successfully.'
-            );
+        $successMessage = $formId > 0
+            ? 'Tax form updated successfully.'
+            : 'Tax form created successfully.';
+
+        $redirectUrl = $authUser->hasRole('admin')
+            ? '/admin/forms'
+            : '/tax-forms';
+
+        return redirect()->to($redirectUrl)
+            ->with('success', $successMessage);
     }
 
     private function resolveCompanySourceValue(
@@ -612,5 +637,5 @@ class CreateFormController extends Controller
         }
 
         return (int) $selectedUser->id;
-        }
+    }
 }

@@ -24,23 +24,25 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\Admin\TaxForm\FormConfigurationController;
 use App\Http\Controllers\Admin\TaxForm\FormDefinitionController;
 use App\Http\Controllers\Admin\TaxForm\CreateFormOptionsController;
-use App\Http\Controllers\Admin\TaxForm\GetSimpleUsersController;
 use App\Http\Controllers\Admin\TaxForm\CreateFormController;
+use App\Http\Controllers\Admin\TaxForm\GetSimpleUsersController;
 use App\Http\Controllers\Admin\TaxForm\FormController as AdminFormController;
 
 use App\Http\Controllers\TaxForm\GetFormCompaniesController;
 use App\Http\Controllers\TaxForm\GetFormContractorsController;
 use App\Http\Controllers\TaxForm\FormController as UserFormController;
+use App\Http\Controllers\TaxForm\ViewFormController;
 
 
 /*
 |--------------------------------------------------------------------------
-| Tax Form Create Support Routes
+| Tax Form Create API Routes
 |--------------------------------------------------------------------------
 */
 
 Route::middleware('auth')
     ->group(function () {
+
         Route::get(
             '/tax-forms/create/companies',
             GetFormCompaniesController::class
@@ -55,7 +57,7 @@ Route::middleware('auth')
 
 /*
 |--------------------------------------------------------------------------
-| Admin Tax Form Create Support Routes
+| Admin Tax Form Create Users
 |--------------------------------------------------------------------------
 */
 
@@ -63,6 +65,7 @@ Route::middleware(['auth', 'role:admin'])
     ->prefix('admin/tax-forms')
     ->name('admin.tax-forms.')
     ->group(function () {
+
         Route::get(
             '/create/users',
             GetSimpleUsersController::class
@@ -80,6 +83,7 @@ Route::middleware(['auth'])
     ->prefix('locations')
     ->name('locations.')
     ->group(function () {
+
         Route::get('/countries', [
             LocationController::class,
             'countries',
@@ -105,12 +109,6 @@ Route::middleware(['auth'])
 
 Route::middleware('guest')->group(function () {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Sign In
-    |--------------------------------------------------------------------------
-    */
-
     Route::get('/sign-in', function () {
         return Inertia::render('auth/sign-in');
     })->name('login');
@@ -121,12 +119,6 @@ Route::middleware('guest')->group(function () {
     ])->name('auth.sign-in.submit');
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Sign Up
-    |--------------------------------------------------------------------------
-    */
-
     Route::get('/sign-up', function () {
         return Inertia::render('auth/sign-up');
     })->name('auth.sign-up');
@@ -136,12 +128,6 @@ Route::middleware('guest')->group(function () {
         'register',
     ])->name('register');
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Set Password
-    |--------------------------------------------------------------------------
-    */
 
     Route::get('/set-password/{token}', [
         SetPasswordController::class,
@@ -154,12 +140,6 @@ Route::middleware('guest')->group(function () {
     ])->name('auth.set-password.submit');
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Forgot Password
-    |--------------------------------------------------------------------------
-    */
-
     Route::get('/forgot-password', function () {
         return Inertia::render('auth/forgot-password');
     })->name('auth.forgot-password');
@@ -169,12 +149,6 @@ Route::middleware('guest')->group(function () {
         'store',
     ])->name('auth.forgot-password.submit');
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Reset Password
-    |--------------------------------------------------------------------------
-    */
 
     Route::get('/reset-password/{token}', [
         ResetPasswordController::class,
@@ -190,7 +164,7 @@ Route::middleware('guest')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| Authenticated User Routes
+| Normal User Routes
 |--------------------------------------------------------------------------
 */
 
@@ -198,7 +172,7 @@ Route::middleware(['auth', 'role:user'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Tax Forms - User Created Forms
+    | User Tax Forms
     |--------------------------------------------------------------------------
     */
 
@@ -211,10 +185,60 @@ Route::middleware(['auth', 'role:user'])->group(function () {
                 [UserFormController::class, 'index']
             )->name('index');
 
+
+            /*
+            |--------------------------------------------------------------------------
+            | Create Tax Form
+            |--------------------------------------------------------------------------
+            */
+
+            Route::get(
+                '/create/{formDefinitionId}',
+                CreateFormController::class
+            )
+                ->whereNumber('formDefinitionId')
+                ->name('create');
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Store / Update Tax Form
+            |--------------------------------------------------------------------------
+            */
+
+            Route::post(
+                '/create/{formDefinitionId}',
+                [CreateFormController::class, 'store']
+            )
+                ->whereNumber('formDefinitionId')
+                ->name('create.store');
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | View Tax Form
+            |--------------------------------------------------------------------------
+            */
+
+            Route::get(
+                '/{form}/view',
+                [ViewFormController::class, 'user']
+            )
+                ->whereNumber('form')
+                ->name('view');
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Delete Tax Form
+            |--------------------------------------------------------------------------
+            */
+
             Route::delete(
                 '/{form}',
                 [UserFormController::class, 'destroy']
-            )->whereNumber('form')
+            )
+                ->whereNumber('form')
                 ->name('destroy');
         });
 
@@ -233,7 +257,7 @@ Route::middleware(['auth', 'role:user'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | User Companies
+    | Normal User Companies
     |--------------------------------------------------------------------------
     */
 
@@ -381,6 +405,10 @@ Route::middleware(['auth', 'role:user'])->group(function () {
                 return Inertia::render('errors/maintenance');
             })->name('maintenance');
 
+            Route::get('internal-server-error', function () {
+                return Inertia::render('errors/internal-server');
+            })->name('maintenance');
+
             Route::fallback(function () {
                 return Inertia::render('not-found');
             });
@@ -395,12 +423,14 @@ Route::middleware(['auth', 'role:user'])->group(function () {
 */
 
 Route::post('/logout', function (Request $request) {
+
     Auth::logout();
 
     $request->session()->invalidate();
     $request->session()->regenerateToken();
 
     return redirect()->route('login');
+
 })->middleware('auth')->name('logout');
 
 
@@ -410,9 +440,47 @@ Route::post('/logout', function (Request $request) {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'role:user'])
+Route::middleware(['auth'])
     ->prefix('companies/{company}/contractors')
     ->name('companies.contractors.')
+    ->group(function () {
+
+        Route::get('/', [
+            ContractorController::class,
+            'index',
+        ])->name('index');
+
+        Route::post('/', [
+            ContractorController::class,
+            'store',
+        ])->name('store');
+
+        Route::get('/{contractor}', [
+            ContractorController::class,
+            'show',
+        ])->name('show');
+
+        Route::put('/{contractor}', [
+            ContractorController::class,
+            'update',
+        ])->name('update');
+
+        Route::delete('/{contractor}', [
+            ContractorController::class,
+            'destroy',
+        ])->name('destroy');
+    });
+
+
+/*
+|--------------------------------------------------------------------------
+| Admin Contractor Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth'])
+    ->prefix('admin/companies/{company}/contractors')
+    ->name('admin.companies.contractors.')
     ->group(function () {
 
         Route::get('/', [
@@ -496,38 +564,57 @@ Route::middleware(['auth', 'role:admin'])
         |--------------------------------------------------------------------------
         | Admin Created Tax Forms
         |--------------------------------------------------------------------------
-        |
-        | These are the forms actually created by users/admins.
-        | This is intentionally separate from /admin/tax-forms.
-        |
         */
 
         Route::prefix('forms')
             ->name('forms.')
             ->group(function () {
 
+                /*
+                |--------------------------------------------------------------------------
+                | Tax Forms List
+                |--------------------------------------------------------------------------
+                */
+
                 Route::get(
                     '/',
                     [AdminFormController::class, 'index']
                 )->name('index');
 
+
+                /*
+                |--------------------------------------------------------------------------
+                | View Created Tax Form
+                |--------------------------------------------------------------------------
+                */
+
+                Route::get(
+                    '/{form}/view',
+                    [ViewFormController::class, 'admin']
+                )
+                    ->whereNumber('form')
+                    ->name('view');
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | Delete Created Tax Form
+                |--------------------------------------------------------------------------
+                */
+
                 Route::delete(
                     '/{form}',
                     [AdminFormController::class, 'destroy']
-                )->whereNumber('form')
+                )
+                    ->whereNumber('form')
                     ->name('destroy');
             });
 
 
         /*
         |--------------------------------------------------------------------------
-        | Admin Tax Form Definitions
+        | Admin Tax Form Definitions / Configuration
         |--------------------------------------------------------------------------
-        |
-        | IMPORTANT:
-        | /admin/tax-forms is the existing definition/configuration area.
-        | Do not mix created-form routes into this group.
-        |
         */
 
         Route::prefix('tax-forms')
@@ -550,9 +637,6 @@ Route::middleware(['auth', 'role:admin'])
                 |--------------------------------------------------------------------------
                 | Create Form Options
                 |--------------------------------------------------------------------------
-                |
-                | Static routes must come before dynamic routes.
-                |
                 */
 
                 Route::get(
@@ -563,26 +647,30 @@ Route::middleware(['auth', 'role:admin'])
 
                 /*
                 |--------------------------------------------------------------------------
-                | Create Form
+                | Create Tax Form
                 |--------------------------------------------------------------------------
                 */
 
                 Route::get(
                     '/create/{formDefinitionId}',
                     CreateFormController::class
-                )->name('create');
+                )
+                    ->whereNumber('formDefinitionId')
+                    ->name('create');
 
 
                 /*
                 |--------------------------------------------------------------------------
-                | Store Form
+                | Store / Update Tax Form
                 |--------------------------------------------------------------------------
                 */
 
                 Route::post(
                     '/create/{formDefinitionId}',
                     [CreateFormController::class, 'store']
-                )->name('create.store');
+                )
+                    ->whereNumber('formDefinitionId')
+                    ->name('create.store');
 
 
                 /*
@@ -594,57 +682,24 @@ Route::middleware(['auth', 'role:admin'])
                 Route::get(
                     '/{formDefinitionId}/configuration',
                     [FormConfigurationController::class, 'index']
-                )->name('configuration.index');
+                )
+                    ->whereNumber('formDefinitionId')
+                    ->name('configuration.index');
 
                 Route::put(
                     '/{formDefinitionId}/configuration/{formDefinitionFieldId}',
                     [FormConfigurationController::class, 'update']
-                )->name('configuration.update');
+                )
+                    ->whereNumber('formDefinitionId')
+                    ->whereNumber('formDefinitionFieldId')
+                    ->name('configuration.update');
             });
     });
 
 
 /*
 |--------------------------------------------------------------------------
-| Admin Contractor Routes
-|--------------------------------------------------------------------------
-*/
-
-Route::middleware(['auth', 'role:admin'])
-    ->prefix('admin/companies/{company}/contractors')
-    ->name('admin.companies.contractors.')
-    ->group(function () {
-
-        Route::get('/', [
-            ContractorController::class,
-            'index',
-        ])->name('index');
-
-        Route::post('/', [
-            ContractorController::class,
-            'store',
-        ])->name('store');
-
-        Route::get('/{contractor}', [
-            ContractorController::class,
-            'show',
-        ])->name('show');
-
-        Route::put('/{contractor}', [
-            ContractorController::class,
-            'update',
-        ])->name('update');
-
-        Route::delete('/{contractor}', [
-            ContractorController::class,
-            'destroy',
-        ])->name('destroy');
-    });
-
-
-/*
-|--------------------------------------------------------------------------
-| Admin Company Routes
+| Admin Companies
 |--------------------------------------------------------------------------
 */
 

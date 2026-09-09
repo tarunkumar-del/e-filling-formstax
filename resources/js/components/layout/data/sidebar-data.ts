@@ -30,6 +30,11 @@ export const getSidebarData = (user: SidebarUser): SidebarData => {
             url: isAdmin ? '/admin/companies' : '/companies',
             icon: Building2,
         },
+        {
+            title: 'Forms',
+            url: isAdmin ? '/admin/forms' : '/tax-forms',
+            icon: Building2,
+        },
 
         ...(isAdmin
             ? [
@@ -39,10 +44,10 @@ export const getSidebarData = (user: SidebarUser): SidebarData => {
                       icon: Users,
                 },
                 {
-                      title: 'Tax Forms',
+                      title: 'Tax-Forms Configuration',
                       url: '/admin/tax-forms',
                       icon: FileText,
-                  },
+                },
               ]
             : []),
     ];

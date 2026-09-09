@@ -43,6 +43,8 @@ interface CreateFormPagePropsWithContext
     form_id?: number | null;
     form_fields?: FormField[];
     form_values?: Record<string, string | null>;
+    selected_company_id?: number | null;
+    selected_contractor_id?: number | null;
 }
 
 interface LocationRegion {
@@ -179,8 +181,10 @@ export default function CreateFormPage({
     form_id = null,
     form_fields = [],
     form_values = {},
+    selected_company_id = null,
+    selected_contractor_id = null,
 }: CreateFormPagePropsWithContext) {
-    const [step, setStep] = useState<1 | 2 | 3>(1);
+    const [step, setStep] = useState<1 | 2 | 3>(form_id ? 3 : 1);
 
     const groupedFormFields =
         groupFormFieldsBySection(form_fields);
@@ -210,9 +214,18 @@ export default function CreateFormPage({
         );
 
     const [selectedCompany, setSelectedCompany] =
-        useState<CreateFormCompany | null>(
-            null,
-        );
+        useState<CreateFormCompany | null>(() => {
+            if (!selected_company_id) {
+                return null;
+            }
+
+            return (
+                initialCompanies.find(
+                    (company) =>
+                        company.id === selected_company_id,
+                ) ?? null
+            );
+        });
 
     const [contractors, setContractors] =
         useState<CreateFormContractor[]>(
@@ -314,6 +327,8 @@ export default function CreateFormPage({
     }, [
         owner_user_id,
         is_admin,
+        form_id,
+        selected_company_id,
     ]);
 
     const loadCompanies = async () => {
@@ -369,6 +384,28 @@ export default function CreateFormPage({
             setCompanies(
                 loadedCompanies,
             );
+
+            /*
+             * Edit mode: restore the company that is already
+             * attached to the existing tax form.
+             */
+            const editCompanyId =
+                form_id && selected_company_id
+                    ? selected_company_id
+                    : null;
+
+            if (editCompanyId) {
+                const existingCompany =
+                    loadedCompanies.find(
+                        (company: CreateFormCompany) =>
+                            company.id === editCompanyId,
+                    );
+
+                if (existingCompany) {
+                    setSelectedCompany(existingCompany);
+                    await loadContractors(existingCompany.id);
+                }
+            }
 
             /*
              * Auto-select company created
@@ -515,6 +552,29 @@ export default function CreateFormPage({
             setContractors(
                 loadedContractors,
             );
+
+            /*
+             * Edit mode: restore the contractor that is already
+             * attached to the existing tax form.
+             */
+            const editContractorId =
+                form_id && selected_contractor_id
+                    ? selected_contractor_id
+                    : null;
+
+            if (editContractorId) {
+                const existingContractor =
+                    loadedContractors.find(
+                        (contractor: CreateFormContractor) =>
+                            contractor.id === editContractorId,
+                    );
+
+                if (existingContractor) {
+                    setSelectedContractor(existingContractor);
+                    void loadSelectedContractorDetails(existingContractor);
+                    setStep(3);
+                }
+            }
 
             /*
              * Auto-select newly created contractor.
@@ -858,11 +918,11 @@ export default function CreateFormPage({
      * Load State / Region Options
      * ---------------------------------------------------------
      *
-     * State fields such as state_a/state_b and the company
-     * state-number fields are configured as input_type=region
-     * with source_key=code. Their country is the selected
-     * contractor country, so the region list is loaded from
-     * the same location endpoint used by the contractor form.
+     * State fields such as state_a/state_b are configured as
+     * input_type=region and source_key=code. Their country is
+     * the selected contractor country, so the region list is
+     * loaded from the same location endpoints used by the
+     * contractor form.
      */
     useEffect(() => {
         const countryId = selectedContractor?.country_id;
@@ -1150,31 +1210,76 @@ export default function CreateFormPage({
             return;
         }
 
-        if (!validateFormDetails()) {
+        if (savingDetails) {
             return;
         }
 
-        if (savingDetails) {
+        /*
+         * Validate only the editable/saved form data immediately
+         * before sending the request. In edit mode this same handler
+         * updates the existing form because form_id is included.
+         */
+        const isValid = validateFormDetails();
+
+        if (!isValid) {
+            setFormError(
+                'Please fix the highlighted fields before saving.',
+            );
+
             return;
         }
 
         setSavingDetails(true);
         setFormError(null);
 
-        router.post(
-            `/admin/tax-forms/create/${formDefinition.id}`,
+        const saveUrl = is_admin
+            ? `/admin/tax-forms/create/${formDefinition.id}`
+            : `/tax-forms/create/${formDefinition.id}`;
+
+        const payload = {
+            ...(is_admin && owner_user_id
+                ? { user_id: owner_user_id }
+                : {}),
+            ...(form_id !== null && form_id !== undefined
+                ? { form_id: Number(form_id) }
+                : {}),
+            company_id: Number(selectedCompany.id),
+            contractor_id: Number(selectedContractor.id),
+            field_values: fieldValues,
+        };
+
+        console.log(
+            form_id
+                ? 'Updating tax form:'
+                : 'Creating tax form:',
             {
-                user_id: owner_user_id,
-                company_id: selectedCompany.id,
-                contractor_id: selectedContractor.id,
-                field_values: fieldValues,
+                url: saveUrl,
+                payload,
             },
+        );
+
+        router.post(
+            saveUrl,
+            payload,
             {
                 preserveScroll: true,
 
+                onStart: () => {
+                    setSavingDetails(true);
+                    setFormError(null);
+                },
+
+                onSuccess: () => {
+                    /*
+                     * The backend redirects to the appropriate
+                     * tax-form list after a successful create/update.
+                     */
+                    setSavingDetails(false);
+                },
+
                 onError: (errors) => {
                     console.error(
-                        'Save form details errors:',
+                        'Save/update tax form errors:',
                         errors,
                     );
 
@@ -1186,7 +1291,7 @@ export default function CreateFormPage({
                     Object.entries(errors).forEach(
                         ([key, value]) => {
                             const match = key.match(
-                                /^field_values\.(\d+)(?:\..*)?$/,
+                                /field_values\.(\d+)/,
                             );
 
                             if (
@@ -1201,23 +1306,14 @@ export default function CreateFormPage({
 
                     setFieldErrors(nextErrors);
 
-                    const generalErrors = Object.entries(
-                        errors,
-                    ).filter(
-                        ([key]) =>
-                            !key.startsWith('field_values.'),
-                    );
-
                     const firstError =
-                        generalErrors.length > 0
-                            ? generalErrors[0][1]
-                            : Object.values(errors)[0];
+                        Object.values(errors)[0];
 
                     if (typeof firstError === 'string') {
                         setFormError(firstError);
                     } else {
                         setFormError(
-                            'Please correct the highlighted fields and try again.',
+                            'Unable to save the tax form. Please check the highlighted fields and try again.',
                         );
                     }
                 },
@@ -1284,7 +1380,7 @@ export default function CreateFormPage({
             <div className="flex items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-semibold tracking-tight">
-                        Create{' '}
+                        {form_id ? 'Edit' : 'Create'}{' '}
                         {formDefinition.name}
                     </h1>
 
@@ -1677,7 +1773,9 @@ export default function CreateFormPage({
                                 </CardTitle>
 
                                 <p className="mt-1 text-sm text-muted-foreground">
-                                    Enter the required tax information for this form.
+                                    {form_id
+                                        ? 'Update the required tax information for this form.'
+                                        : 'Enter the required tax information for this form.'}
                                 </p>
                             </div>
                         </CardHeader>
@@ -2103,8 +2201,12 @@ export default function CreateFormPage({
                                     }
                                 >
                                     {savingDetails
-                                        ? 'Saving...'
-                                        : 'Save & Complete'}
+                                        ? (form_id
+                                            ? 'Updating...'
+                                            : 'Saving...')
+                                        : (form_id
+                                            ? 'Save Changes'
+                                            : 'Save & Complete')}
 
                                     {!savingDetails && (
                                         <Check className="ml-2 h-4 w-4" />

@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import {
     Edit,
+    Eye,
     FileText,
     Trash2,
 } from 'lucide-react';
@@ -150,15 +151,33 @@ export function CreatedTaxFormList({
         });
     };
 
+    const handleView = (
+        form: CreatedTaxForm,
+    ): void => {
+        const viewUrl = isAdmin
+            ? `/admin/forms/${form.id}/view`
+            : `/tax-forms/${form.id}/view`;
+
+        router.visit(viewUrl);
+    };
+
     const handleEdit = (
         form: CreatedTaxForm,
     ): void => {
-        const editBaseUrl = isAdmin
-            ? `/admin/tax-forms/create/${form.form_definition_id}`
-            : `/tax-forms/create/${form.form_definition_id}`;
+        /*
+         * Admin edits a form on behalf of the form owner.
+         * The create/edit controller therefore needs BOTH:
+         * - form_id: the existing tax form to update
+         * - user_id: the simple user who owns that form
+         *
+         * Normal users only need form_id because they edit
+         * their own forms.
+         */
+        const editUrl = isAdmin
+            ? `/admin/tax-forms/create/${form.form_definition_id}?form_id=${form.id}&user_id=${form.user_id}`
+            : `/tax-forms/create/${form.form_definition_id}?form_id=${form.id}`;
 
-        window.location.href =
-            `${editBaseUrl}?form_id=${form.id}`;
+        router.visit(editUrl);
     };
 
     if (forms.length === 0) {
@@ -299,6 +318,18 @@ export function CreatedTaxFormList({
                                 </div>
 
                                 <div className="mt-6 flex justify-end gap-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() =>
+                                            handleView(
+                                                form,
+                                            )
+                                        }
+                                    >
+                                        <Eye className="mr-2 h-4 w-4" />
+                                        View
+                                    </Button>
+
                                     <Button
                                         variant="outline"
                                         onClick={() =>
