@@ -3,151 +3,248 @@
 namespace App\Http\Controllers;
 
 use App\Models\Company;
+use App\Models\Contractor;
+use App\Models\Form;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class DashboardController extends Controller
+final class DashboardController
 {
-    /**
-     * Normal user dashboard.
-     */
     public function index(Request $request): Response
     {
+        $user = $request->user();
+
+        abort_unless($user !== null, 401);
+
         return $this->renderDashboard(
-            $request,
-            false
+            userId: (int) $user->id,
+            isAdmin: false,
         );
     }
 
-    /**
-     * Admin dashboard.
-     */
     public function admin(Request $request): Response
     {
+        $user = $request->user();
+
+        abort_unless($user !== null, 401);
+        abort_unless($user->hasRole('admin'), 403);
+
         return $this->renderDashboard(
-            $request,
-            true
+            userId: null,
+            isAdmin: true,
         );
     }
 
-    /**
-     * Build dashboard data.
-     */
     private function renderDashboard(
-        Request $request,
-        bool $isAdmin
+        ?int $userId,
+        bool $isAdmin,
     ): Response {
-        /*
-        |--------------------------------------------------------------------------
-        | Companies / Payers
-        |--------------------------------------------------------------------------
-        |
-        | Normal user:
-        |   Only companies owned by logged-in user.
-        |
-        | Admin:
-        |   ALL companies in the system.
-        |
-        */
+        $formsQuery = Form::query();
 
-        $companiesQuery = Company::query()
-            ->withCount('contractors')
-            ->orderBy('business_entity_name');
+        if ($userId !== null) {
+            $formsQuery->where('forms.user_id', $userId);
+        }
 
-        if (! $isAdmin) {
-            $companiesQuery->where(
-                'user_id',
-                $request->user()->id
+        $formsInProgress = (clone $formsQuery)
+            ->where('status', 'draft')
+            ->count();
+
+        $filedForms = (clone $formsQuery)
+            ->where('status', 'completed')
+            ->count();
+
+        $formsInCart = (clone $formsQuery)
+            ->where('status', 'cart')
+            ->count();
+
+        $companiesQuery = Company::query();
+
+        if ($userId !== null) {
+            $companiesQuery->where('user_id', $userId);
+        }
+
+        $totalCompanies = (clone $companiesQuery)->count();
+
+        $contractorsQuery = Contractor::query();
+
+        if ($userId !== null) {
+            $contractorsQuery->whereHas(
+                'company',
+                function ($query) use ($userId): void {
+                    $query->where('user_id', $userId);
+                }
             );
         }
 
-        $companies = $companiesQuery
-            ->get()
-            ->map(function (Company $company) {
-                return [
-                    'id' => $company->id,
+        $totalRecipients = (clone $contractorsQuery)->count();
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Payer = Company
-                    |--------------------------------------------------------------------------
-                    */
+        $payers = (clone $companiesQuery)
+            ->withCount([
+                'contractors as recipients',
+            ])
+            ->get([
+                'id',
+                'business_entity_name',
+            ])
+            ->map(
+                function (Company $company) use ($formsQuery): array {
+                    $companyForms = (clone $formsQuery)
+                        ->where(
+                            'forms.company_id',
+                            $company->id
+                        );
 
-                    'name' => $company->business_entity_name,
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Recipients = Contractors
-                    |--------------------------------------------------------------------------
-                    */
-
-                    'recipients' => $company->contractors_count,
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Filing counts
-                    |--------------------------------------------------------------------------
-                    |
-                    | These will be connected to the actual filing
-                    | module later.
-                    |
-                    */
-
-                    'in_progress' => 0,
-                    'in_cart' => 0,
-                    'filed' => 0,
-                ];
-            })
+                    return [
+                        'id' => (int) $company->id,
+                        'name' => (string) (
+                            $company->business_entity_name
+                            ?: 'Unnamed Company'
+                        ),
+                        'recipients' => (int) (
+                            $company->recipients ?? 0
+                        ),
+                        'in_progress' => (clone $companyForms)
+                            ->where('status', 'draft')
+                            ->count(),
+                        'in_cart' => (clone $companyForms)
+                            ->where('status', 'cart')
+                            ->count(),
+                        'filed' => (clone $companyForms)
+                            ->where('status', 'completed')
+                            ->count(),
+                    ];
+                }
+            )
             ->values();
 
         /*
-        |--------------------------------------------------------------------------
-        | Dashboard totals
-        |--------------------------------------------------------------------------
-        */
+         * PostgreSQL does not support MySQL's MONTH() function.
+         * Use EXTRACT(MONTH FROM created_at) instead.
+         */
+        $monthlyRows = (clone $formsQuery)
+            ->whereYear('created_at', now()->year)
+            ->select([
+                DB::raw(
+                    'EXTRACT(MONTH FROM created_at) as month_number'
+                ),
+                DB::raw(
+                    "SUM(
+                        CASE
+                            WHEN status = 'completed' THEN 1
+                            ELSE 0
+                        END
+                    ) as filed"
+                ),
+                DB::raw(
+                    "SUM(
+                        CASE
+                            WHEN status = 'draft' THEN 1
+                            ELSE 0
+                        END
+                    ) as in_progress"
+                ),
+            ])
+            ->groupBy(
+                DB::raw('EXTRACT(MONTH FROM created_at)')
+            )
+            ->orderBy(
+                DB::raw('EXTRACT(MONTH FROM created_at)')
+            )
+            ->get()
+            ->keyBy(
+                fn ($row) => (int) $row->month_number
+            );
 
-        $totalRecipients = $companies->sum(
-            'recipients'
-        );
+        $monthlyFilingActivity = collect(range(1, 12))
+            ->map(
+                function (int $month) use ($monthlyRows): array {
+                    $row = $monthlyRows->get($month);
+
+                    return [
+                        'month' => now()
+                            ->setMonth($month)
+                            ->format('M'),
+                        'filed' => (int) (
+                            $row?->filed ?? 0
+                        ),
+                        'inProgress' => (int) (
+                            $row?->in_progress ?? 0
+                        ),
+                    ];
+                }
+            )
+            ->values();
+
+        $recentFilings = (clone $formsQuery)
+            ->where('status', 'completed')
+            ->with([
+                'company:id,business_entity_name',
+                'contractor:id,company_id,business_entity_name',
+            ])
+            ->latest('created_at')
+            ->limit(5)
+            ->get([
+                'id',
+                'company_id',
+                'contractor_id',
+                'form_definition_id',
+                'status',
+                'created_at',
+            ])
+            ->map(
+                function (Form $form): array {
+                    $recipient = '—';
+
+                    if (
+                        $form->relationLoaded('contractor') &&
+                        $form->contractor
+                    ) {
+                        $recipient =
+                            $form->contractor
+                                ->business_entity_name
+                            ?: 'Contractor';
+                    }
+
+                    return [
+                        'id' => (int) $form->id,
+                        'form' => 'Tax Form',
+                        'recipient' => $recipient,
+                        'filedDate' => $form->created_at
+                            ? $form->created_at->format('F j, Y')
+                            : '—',
+                        'status' => 'Filed',
+                    ];
+                }
+            )
+            ->values();
+
+        /*
+         * Credits are currently not connected to a credits table/source.
+         * Keep them at zero until the actual credit storage is available.
+         */
+        $formCredits = 0;
+        $tinCredits = 0;
 
         return Inertia::render(
             'authenticated/dashboard',
             [
                 'dashboard' => [
                     'stats' => [
-                        'forms_in_progress' => 0,
-                        'forms_in_cart' => 0,
-                        'filed_forms' => 0,
-                        'form_credits' => 0,
-                        'tin_credits' => 0,
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | Company / Recipient totals
-                        |--------------------------------------------------------------------------
-                        */
-
-                        'total_companies' => $companies->count(),
+                        'forms_in_progress' => $formsInProgress,
+                        'forms_in_cart' => $formsInCart,
+                        'filed_forms' => $filedForms,
+                        'form_credits' => $formCredits,
+                        'tin_credits' => $tinCredits,
+                        'total_companies' => $totalCompanies,
                         'total_recipients' => $totalRecipients,
                     ],
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Payers
-                    |--------------------------------------------------------------------------
-                    */
-
-                    'payers' => $companies,
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Dashboard mode
-                    |--------------------------------------------------------------------------
-                    */
-
-                    'is_admin' => $isAdmin,
+                    'payers' => $payers,
+                    'filing_activity' => $monthlyFilingActivity,
+                    'recent_filings' => $recentFilings,
                 ],
+                'isAdmin' => $isAdmin,
             ]
         );
     }

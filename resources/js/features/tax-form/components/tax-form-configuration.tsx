@@ -9,7 +9,6 @@ import { ProfileDropdown } from '@/components/profile-dropdown';
 import { Search } from '@/components/search';
 import { ThemeSwitch } from '@/components/theme-switch';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
     Table,
     TableBody,
@@ -26,29 +25,26 @@ interface TaxFormConfigurationProps {
     fields: FormField[];
 }
 
+interface FieldConfiguration {
+    is_enabled: boolean;
+    is_required: boolean;
+}
+
 export function TaxFormConfiguration({
     formDefinitionId,
     fields,
 }: TaxFormConfigurationProps) {
     const [fieldValues, setFieldValues] = useState<
-        Record<
-            number,
-            {
-                is_enabled: boolean;
-                is_required: boolean;
-                sort_order: number;
-                section: string;
-            }
-        >
+        Record<number, FieldConfiguration>
     >(() =>
         Object.fromEntries(
             fields.map((field) => [
                 field.id,
                 {
                     is_enabled: field.is_enabled,
-                    is_required: field.is_required,
-                    sort_order: field.sort_order,
-                    section: field.section ?? '',
+                    is_required: field.is_enabled
+                        ? field.is_required
+                        : false,
                 },
             ]),
         ),
@@ -56,46 +52,86 @@ export function TaxFormConfiguration({
 
     const updateField = (
         fieldId: number,
-        key: 'is_enabled' | 'is_required' | 'sort_order' | 'section',
-        value: boolean | number | string,
+        key: 'is_enabled' | 'is_required',
+        value: boolean,
     ) => {
-        setFieldValues((current) => ({
-            ...current,
-            [fieldId]: {
-                ...current[fieldId],
-                [key]: value,
-            },
-        }));
+        setFieldValues((current) => {
+            const currentField = current[fieldId];
+
+            if (!currentField) {
+                return current;
+            }
+
+            /*
+             * When Enabled is turned OFF:
+             * - Required is automatically turned OFF.
+             * - Required becomes disabled in the UI.
+             */
+            if (
+                key === 'is_enabled' &&
+                value === false
+            ) {
+                return {
+                    ...current,
+                    [fieldId]: {
+                        is_enabled: false,
+                        is_required: false,
+                    },
+                };
+            }
+
+            return {
+                ...current,
+                [fieldId]: {
+                    ...currentField,
+                    [key]: value,
+                },
+            };
+        });
     };
 
     const saveField = (field: FormField) => {
         const values = fieldValues[field.id];
 
+        if (!values) {
+            return;
+        }
+
+        /*
+         * Required can never be TRUE when the field
+         * itself is disabled.
+         */
+        const isRequired =
+            values.is_enabled &&
+            values.is_required;
+
         router.put(
             `/admin/tax-forms/${formDefinitionId}/configuration/${field.id}`,
             {
                 is_enabled: values.is_enabled,
-                is_required: values.is_required,
-                sort_order: values.sort_order,
-                section: values.section || null,
+                is_required: isRequired,
 
-                // These are intentionally not configured
-                // from the current UI.
-                validation_rules: field.validation_rules,
-                visibility_rules: field.visibility_rules,
+                /*
+                 * Keep existing backend values for these
+                 * fields even though they are no longer
+                 * editable from the UI.
+                 */
+                sort_order: field.sort_order,
+                section: field.section || null,
+
+                /*
+                 * Existing validation configuration is
+                 * preserved.
+                 */
+                validation_rules:
+                    field.validation_rules,
+                visibility_rules:
+                    field.visibility_rules,
             },
             {
                 preserveScroll: true,
             },
         );
-    };
-
-    const getSectionLabel = (section: string) => {
-        if (!section) {
-            return '—';
-        }
-
-        return section.charAt(0).toUpperCase() + section.slice(1);
     };
 
     return (
@@ -119,6 +155,7 @@ export function TaxFormConfiguration({
                     >
                         <Link href="/admin/tax-forms">
                             <ArrowLeft className="h-4 w-4" />
+
                             <span className="sr-only">
                                 Back to Tax Forms
                             </span>
@@ -149,243 +186,179 @@ export function TaxFormConfiguration({
                                 </h3>
 
                                 <p className="mt-1 text-sm text-muted-foreground">
-                                    Enable or disable fields, mark fields as
-                                    required, and control their order and
-                                    section.
+                                    Enable or disable fields and mark
+                                    enabled fields as required.
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    {Object.entries(
-                        fields.reduce<Record<string, FormField[]>>(
-                            (groups, field) => {
-                                const section = field.section || 'other';
+                    <div className="overflow-hidden rounded-lg border bg-card">
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="min-w-[320px]">
+                                            Field
+                                        </TableHead>
 
-                                if (!groups[section]) {
-                                    groups[section] = [];
-                                }
+                                        <TableHead>
+                                            Type
+                                        </TableHead>
 
-                                groups[section].push(field);
+                                        <TableHead className="text-center">
+                                            Enabled
+                                        </TableHead>
 
-                                return groups;
-                            },
-                            {},
-                        ),
-                    ).map(([section, sectionFields]) => (
-                        <div
-                            key={section}
-                            className="overflow-hidden rounded-lg border bg-card"
-                        >
-                            <div className="border-b px-5 py-4">
-                                <h3 className="font-semibold">
-                                    {getSectionLabel(section)}
-                                </h3>
+                                        <TableHead className="text-center">
+                                            Required
+                                        </TableHead>
 
-                                <p className="text-sm text-muted-foreground">
-                                    {sectionFields.length}{' '}
-                                    {sectionFields.length === 1
-                                        ? 'field'
-                                        : 'fields'}
-                                </p>
-                            </div>
+                                        <TableHead className="w-[100px] text-right">
+                                            Action
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
 
-                            <div className="overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="min-w-[280px]">
-                                                Field
-                                            </TableHead>
+                                <TableBody>
+                                    {fields
+                                        .slice()
+                                        .sort(
+                                            (a, b) =>
+                                                a.sort_order -
+                                                b.sort_order,
+                                        )
+                                        .map((field) => {
+                                            const values =
+                                                fieldValues[field.id];
 
-                                            <TableHead>
-                                                Type
-                                            </TableHead>
+                                            if (!values) {
+                                                return null;
+                                            }
 
-                                            <TableHead className="text-center">
-                                                Enabled
-                                            </TableHead>
+                                            const requiredDisabled =
+                                                !values.is_enabled;
 
-                                            <TableHead className="text-center">
-                                                Required
-                                            </TableHead>
-
-                                            <TableHead className="w-[110px]">
-                                                Order
-                                            </TableHead>
-
-                                            <TableHead className="min-w-[150px]">
-                                                Section
-                                            </TableHead>
-
-                                            <TableHead className="w-[100px] text-right">
-                                                Action
-                                            </TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-
-                                    <TableBody>
-                                        {sectionFields
-                                            .sort(
-                                                (a, b) =>
-                                                    a.sort_order -
-                                                    b.sort_order,
-                                            )
-                                            .map((field) => {
-                                                const values =
-                                                    fieldValues[field.id];
-
-                                                return (
-                                                    <TableRow key={field.id}>
-                                                        <TableCell>
-                                                            <div>
-                                                                <div className="font-medium">
-                                                                    {
-                                                                        field.label
-                                                                    }
-                                                                </div>
-
-                                                                <div className="mt-1 text-xs text-muted-foreground">
-                                                                    {
-                                                                        field.field_key
-                                                                    }
-                                                                </div>
-                                                            </div>
-                                                        </TableCell>
-
-                                                        <TableCell>
-                                                            <span className="text-sm">
+                                            return (
+                                                <TableRow
+                                                    key={field.id}
+                                                >
+                                                    <TableCell>
+                                                        <div>
+                                                            <div className="font-medium">
                                                                 {
-                                                                    field.input_type
+                                                                    field.label
                                                                 }
-                                                            </span>
-                                                        </TableCell>
+                                                            </div>
 
-                                                        <TableCell className="text-center">
-                                                            <button
-                                                                type="button"
-                                                                role="switch"
-                                                                aria-checked={
+                                                            <div className="mt-1 text-xs text-muted-foreground">
+                                                                {
+                                                                    field.field_key
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    </TableCell>
+
+                                                    <TableCell>
+                                                        <span className="text-sm">
+                                                            {
+                                                                field.input_type
+                                                            }
+                                                        </span>
+                                                    </TableCell>
+
+                                                    <TableCell className="text-center">
+                                                        <button
+                                                            type="button"
+                                                            role="switch"
+                                                            aria-checked={
+                                                                values.is_enabled
+                                                            }
+                                                            onClick={() =>
+                                                                updateField(
+                                                                    field.id,
+                                                                    'is_enabled',
+                                                                    !values.is_enabled,
+                                                                )
+                                                            }
+                                                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                                                                values.is_enabled
+                                                                    ? 'bg-primary'
+                                                                    : 'bg-muted'
+                                                            }`}
+                                                        >
+                                                            <span
+                                                                className={`pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform ${
                                                                     values.is_enabled
-                                                                }
-                                                                onClick={() =>
-                                                                    updateField(
-                                                                        field.id,
-                                                                        'is_enabled',
-                                                                        !values.is_enabled,
-                                                                    )
-                                                                }
-                                                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                                                                    values.is_enabled
-                                                                        ? 'bg-primary'
-                                                                        : 'bg-muted'
+                                                                        ? 'translate-x-5'
+                                                                        : 'translate-x-0'
                                                                 }`}
-                                                            >
-                                                                <span
-                                                                    className={`pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform ${
-                                                                        values.is_enabled
-                                                                            ? 'translate-x-5'
-                                                                            : 'translate-x-0'
-                                                                    }`}
-                                                                />
-                                                            </button>
-                                                        </TableCell>
+                                                            />
+                                                        </button>
+                                                    </TableCell>
 
-                                                        <TableCell className="text-center">
-                                                            <button
-                                                                type="button"
-                                                                role="switch"
-                                                                aria-checked={
-                                                                    values.is_required
-                                                                }
-                                                                onClick={() =>
-                                                                    updateField(
-                                                                        field.id,
-                                                                        'is_required',
-                                                                        !values.is_required,
-                                                                    )
-                                                                }
-                                                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                                                                    values.is_required
-                                                                        ? 'bg-primary'
-                                                                        : 'bg-muted'
+                                                    <TableCell className="text-center">
+                                                        <button
+                                                            type="button"
+                                                            role="switch"
+                                                            aria-checked={
+                                                                values.is_required
+                                                            }
+                                                            aria-disabled={
+                                                                requiredDisabled
+                                                            }
+                                                            disabled={
+                                                                requiredDisabled
+                                                            }
+                                                            onClick={() =>
+                                                                updateField(
+                                                                    field.id,
+                                                                    'is_required',
+                                                                    !values.is_required,
+                                                                )
+                                                            }
+                                                            className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                                                                requiredDisabled
+                                                                    ? 'cursor-not-allowed bg-muted opacity-50'
+                                                                    : 'cursor-pointer'
+                                                            } ${
+                                                                values.is_required &&
+                                                                !requiredDisabled
+                                                                    ? 'bg-primary'
+                                                                    : 'bg-muted'
+                                                            }`}
+                                                        >
+                                                            <span
+                                                                className={`pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform ${
+                                                                    values.is_required &&
+                                                                    !requiredDisabled
+                                                                        ? 'translate-x-5'
+                                                                        : 'translate-x-0'
                                                                 }`}
-                                                            >
-                                                                <span
-                                                                    className={`pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform ${
-                                                                        values.is_required
-                                                                            ? 'translate-x-5'
-                                                                            : 'translate-x-0'
-                                                                    }`}
-                                                                />
-                                                            </button>
-                                                        </TableCell>
-
-                                                        <TableCell>
-                                                            <Input
-                                                                type="number"
-                                                                min={0}
-                                                                value={
-                                                                    values.sort_order
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    updateField(
-                                                                        field.id,
-                                                                        'sort_order',
-                                                                        Number(
-                                                                            event
-                                                                                .target
-                                                                                .value,
-                                                                        ),
-                                                                    )
-                                                                }
-                                                                className="h-9"
                                                             />
-                                                        </TableCell>
+                                                        </button>
+                                                    </TableCell>
 
-                                                        <TableCell>
-                                                            <Input
-                                                                value={
-                                                                    values.section
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    updateField(
-                                                                        field.id,
-                                                                        'section',
-                                                                        event
-                                                                            .target
-                                                                            .value,
-                                                                    )
-                                                                }
-                                                                className="h-9"
-                                                            />
-                                                        </TableCell>
-
-                                                        <TableCell className="text-right">
-                                                            <Button
-                                                                type="button"
-                                                                size="sm"
-                                                                onClick={() =>
-                                                                    saveField(
-                                                                        field,
-                                                                    )
-                                                                }
-                                                            >
-                                                                Save
-                                                            </Button>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                );
-                                            })}
-                                    </TableBody>
-                                </Table>
-                            </div>
+                                                    <TableCell className="text-right">
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                saveField(
+                                                                    field,
+                                                                )
+                                                            }
+                                                        >
+                                                            Save
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                </TableBody>
+                            </Table>
                         </div>
-                    ))}
+                    </div>
                 </div>
             </Main>
         </>

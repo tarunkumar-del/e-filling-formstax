@@ -5,8 +5,7 @@ namespace App\Infrastructure\Persistence\Repositories\TaxForm;
 use App\Domain\TaxForm\Repositories\FormDefinitionFieldRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 
-class EloquentFormDefinitionFieldRepository
-    implements FormDefinitionFieldRepositoryInterface
+class EloquentFormDefinitionFieldRepository implements FormDefinitionFieldRepositoryInterface
 {
     public function getByFormDefinitionId(
         int $formDefinitionId
@@ -72,11 +71,11 @@ class EloquentFormDefinitionFieldRepository
 
                 $field['field_validation_rules'] =
                     $field['field_validation_rules']
-                        ? json_decode(
-                            $field['field_validation_rules'],
-                            true
-                        )
-                        : null;
+                    ? json_decode(
+                        $field['field_validation_rules'],
+                        true
+                    )
+                    : null;
 
                 $field['options'] = $field['options']
                     ? json_decode(
@@ -170,6 +169,8 @@ class EloquentFormDefinitionFieldRepository
         int $formDefinitionFieldId,
         array $data
     ): object {
+        $isEnabled = (bool) $data['is_enabled'];
+
         DB::table('form_definition_fields')
             ->where(
                 'form_definition_id',
@@ -180,10 +181,22 @@ class EloquentFormDefinitionFieldRepository
                 $formDefinitionFieldId
             )
             ->update([
-                'is_enabled' => $data['is_enabled'],
-                'is_required' => $data['is_required'],
+                'is_enabled' => $isEnabled,
+
+                /*
+                 * A disabled field can never be required.
+                 */
+                'is_required' => $isEnabled
+                    ? (bool) $data['is_required']
+                    : false,
+
+                /*
+                 * Existing order and section remain untouched
+                 * by the new UI.
+                 */
                 'sort_order' => $data['sort_order'],
                 'section' => $data['section'],
+
                 'updated_at' => now(),
             ]);
 

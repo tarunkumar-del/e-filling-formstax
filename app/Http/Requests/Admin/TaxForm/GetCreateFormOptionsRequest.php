@@ -8,7 +8,7 @@ class GetCreateFormOptionsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasRole('admin') ?? false;
+        return true;
     }
 
     public function rules(): array

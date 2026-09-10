@@ -119,17 +119,18 @@ export function CreateFormSelector({
                     searchValue.trim(),
                 );
             }
-
+            const endpoint = isAdmin
+            ? '/admin/tax-forms/create/options'
+            : '/tax-forms/create/options';
             const queryString =
                 params.toString();
 
-            const response =
-                await fetch(
-                    `/admin/tax-forms/create/options${
-                        queryString
-                            ? `?${queryString}`
-                            : ''
-                    }`,
+            const response = await fetch(
+                `${endpoint}${
+                    queryString
+                    ? `?${queryString}`
+                    : ''
+                }`,
                     {
                         method: 'GET',
                         headers: {
@@ -265,7 +266,7 @@ export function CreateFormSelector({
             onOpenChange(false);
 
             router.visit(
-                form.create_url,
+                `/tax-forms/create/${form.id}`,
             );
 
             return;

@@ -32,7 +32,7 @@ use App\Http\Controllers\TaxForm\GetFormCompaniesController;
 use App\Http\Controllers\TaxForm\GetFormContractorsController;
 use App\Http\Controllers\TaxForm\FormController as UserFormController;
 use App\Http\Controllers\TaxForm\ViewFormController;
-
+use App\Http\Controllers\TaxForm\UserCreateFormOptionsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -42,6 +42,11 @@ use App\Http\Controllers\TaxForm\ViewFormController;
 
 Route::middleware('auth')
     ->group(function () {
+
+        Route::get(
+            '/tax-forms/create/options',
+            UserCreateFormOptionsController::class
+        )->name('tax-forms.create.options');
 
         Route::get(
             '/tax-forms/create/companies',
@@ -108,6 +113,10 @@ Route::middleware(['auth'])
 */
 
 Route::middleware('guest')->group(function () {
+
+    Route::get('/', function () {
+        return Inertia::render('auth/sign-in');
+    })->name('login');
 
     Route::get('/sign-in', function () {
         return Inertia::render('auth/sign-in');

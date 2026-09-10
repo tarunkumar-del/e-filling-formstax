@@ -12,7 +12,7 @@ import {
     UserPlus,
     Users,
 } from 'lucide-react';
-import { CreateFormSelector } from './components/create-form-selector';
+
 import { useMemo, useState } from 'react';
 
 import {
@@ -49,6 +49,8 @@ import {
 
 import { Link, usePage } from '@inertiajs/react';
 
+import { CreateFormSelector } from './components/create-form-selector';
+
 /*
 |--------------------------------------------------------------------------
 | Types
@@ -74,138 +76,37 @@ interface DashboardStats {
     total_recipients: number;
 }
 
+interface FilingActivity {
+    month: string;
+    filed: number;
+    inProgress: number;
+}
+
+interface RecentFiling {
+    id: number;
+    form: string;
+    recipient: string;
+    filedDate: string;
+    status: string;
+}
+
 interface DashboardData {
     stats: DashboardStats;
     payers: DashboardPayer[];
+    filing_activity: FilingActivity[];
+    recent_filings: RecentFiling[];
 }
 
 interface DashboardPageProps {
     dashboard: DashboardData;
+    isAdmin?: boolean;
 }
 
 /*
 |--------------------------------------------------------------------------
-| Demo Data
-|--------------------------------------------------------------------------
-|
-| These are temporary until the filing module is connected.
-|
+| Quick Actions
 |--------------------------------------------------------------------------
 */
-
-const filingActivityData = [
-    {
-        month: 'Jan',
-        filed: 8,
-        inProgress: 4,
-    },
-    {
-        month: 'Feb',
-        filed: 12,
-        inProgress: 6,
-    },
-    {
-        month: 'Mar',
-        filed: 10,
-        inProgress: 8,
-    },
-    {
-        month: 'Apr',
-        filed: 16,
-        inProgress: 5,
-    },
-    {
-        month: 'May',
-        filed: 14,
-        inProgress: 7,
-    },
-    {
-        month: 'Jun',
-        filed: 20,
-        inProgress: 9,
-    },
-    {
-        month: 'Jul',
-        filed: 18,
-        inProgress: 6,
-    },
-    {
-        month: 'Aug',
-        filed: 24,
-        inProgress: 8,
-    },
-    {
-        month: 'Sep',
-        filed: 21,
-        inProgress: 5,
-    },
-];
-
-const filingStatusData = [
-    {
-        name: 'Filed',
-        value: 42,
-        color: '#2563eb',
-    },
-    {
-        name: 'In Progress',
-        value: 12,
-        color: '#111827',
-    },
-    {
-        name: 'In Cart',
-        value: 7,
-        color: '#94a3b8',
-    },
-];
-
-const upcomingDeadlines = [
-    {
-        id: 1,
-        date: 'October 31, 2026',
-        title: 'Quarterly filing deadline',
-        form: 'Form 941 - Q3',
-        status: 'Upcoming',
-    },
-    {
-        id: 2,
-        date: 'January 31, 2027',
-        title: 'Annual filing deadline',
-        form: 'Form 1099 - NEC',
-        status: 'Upcoming',
-    },
-    {
-        id: 3,
-        date: 'March 31, 2027',
-        title: 'Annual information return',
-        form: 'Form 1099 - MISC',
-        status: 'Upcoming',
-    },
-];
-
-const recentFilings = [
-    {
-        id: 1,
-        form: 'Form 1099-NEC',
-        recipient: 'John Smith',
-        filedDate: 'August 28, 2026',
-        status: 'Filed',
-    },
-    {
-        id: 2,
-        form: 'Form 1099-MISC',
-        recipient: 'ABC Services LLC',
-        filedDate: 'August 21, 2026',
-        status: 'Filed',
-    },
-    {
-        id: 3,
-        form: 'Form 941',
-        recipient: 'Autolantis Inc.',
-        filedDate: 'August 14, 2026',
-        status: 'Filed',
-    },
-];
 
 const quickActions = [
     {
@@ -254,22 +155,30 @@ export function Dashboard() {
 
     const [createFormOpen, setCreateFormOpen] =
         useState(false);
-    /*
-    |--------------------------------------------------------------------------
-    | Payers
-    |--------------------------------------------------------------------------
-    */
+
+    const stats = dashboard?.stats ?? {
+        forms_in_progress: 0,
+        forms_in_cart: 0,
+        filed_forms: 0,
+        form_credits: 0,
+        tin_credits: 0,
+        total_companies: 0,
+        total_recipients: 0,
+    };
 
     const payers = dashboard?.payers ?? [];
 
+    const filingActivity =
+        dashboard?.filing_activity ?? [];
+
+    const recentFilings =
+        dashboard?.recent_filings ?? [];
+
     /*
-    |--------------------------------------------------------------------------
-    | Top Payers
-    |--------------------------------------------------------------------------
-    |
-    | Companies with the highest number of contractors/recipients.
-    |
-    */
+     * ---------------------------------------------------------------------
+     * Top Companies
+     * ---------------------------------------------------------------------
+     */
 
     const topPayers = useMemo(() => {
         return [...payers]
@@ -281,10 +190,10 @@ export function Dashboard() {
     }, [payers]);
 
     /*
-    |--------------------------------------------------------------------------
-    | Payer Chart Data
-    |--------------------------------------------------------------------------
-    */
+     * ---------------------------------------------------------------------
+     * Chart Data
+     * ---------------------------------------------------------------------
+     */
 
     const payerChartData = topPayers.map(
         (payer) => ({
@@ -299,12 +208,26 @@ export function Dashboard() {
         }),
     );
 
+    const filingStatusData = [
+        {
+            name: 'Filed',
+            value: stats.filed_forms,
+            color: '#2563eb',
+        },
+        {
+            name: 'In Progress',
+            value: stats.forms_in_progress,
+            color: '#111827',
+        },
+        {
+            name: 'In Cart',
+            value: stats.forms_in_cart,
+            color: '#94a3b8',
+        },
+    ].filter((item) => item.value > 0);
+
     return (
         <>
-            {/* =========================================================
-                HEADER
-            ========================================================= */}
-
             <Header>
                 <div className="ms-auto flex items-center space-x-4">
                     <Search />
@@ -313,10 +236,6 @@ export function Dashboard() {
                     <ProfileDropdown />
                 </div>
             </Header>
-
-            {/* =========================================================
-                MAIN
-            ========================================================= */}
 
             <Main>
                 <div className="space-y-6">
@@ -340,7 +259,12 @@ export function Dashboard() {
                             </p>
                         </div>
 
-                        <Button type="button" onClick={() => setCreateFormOpen(true)}>
+                        <Button
+                            type="button"
+                            onClick={() =>
+                                setCreateFormOpen(true)
+                            }
+                        >
                             <FileText className="mr-2 size-4" />
                             Create a Form
                         </Button>
@@ -354,8 +278,7 @@ export function Dashboard() {
                         <StatCard
                             title="Forms in Progress"
                             value={
-                                dashboard.stats
-                                    .forms_in_progress
+                                stats.forms_in_progress
                             }
                             description="Currently being prepared"
                             icon={Clock3}
@@ -364,7 +287,7 @@ export function Dashboard() {
                         <StatCard
                             title="Forms in Cart"
                             value={
-                                dashboard.stats.forms_in_cart
+                                stats.forms_in_cart
                             }
                             description="Ready for filing"
                             icon={ShoppingCart}
@@ -373,7 +296,7 @@ export function Dashboard() {
                         <StatCard
                             title="Filed Forms"
                             value={
-                                dashboard.stats.filed_forms
+                                stats.filed_forms
                             }
                             description="Successfully filed"
                             icon={FileCheck2}
@@ -382,7 +305,7 @@ export function Dashboard() {
                         <StatCard
                             title="Form Credits"
                             value={
-                                dashboard.stats.form_credits
+                                stats.form_credits
                             }
                             description="Available credits"
                             icon={FileText}
@@ -391,7 +314,7 @@ export function Dashboard() {
                         <StatCard
                             title="TIN Credits"
                             value={
-                                dashboard.stats.tin_credits
+                                stats.tin_credits
                             }
                             description="Available credits"
                             icon={UserPlus}
@@ -414,54 +337,68 @@ export function Dashboard() {
                         </div>
 
                         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                            {quickActions.map((action) => {
-                                const Icon = action.icon;
+                            {quickActions.map(
+                                (action) => {
+                                    const Icon =
+                                        action.icon;
 
-                                return (
-                                    <Card
-                                        key={action.title}
-                                        className="group transition-shadow hover:shadow-md"
-                                    >
-                                        <CardContent className="flex min-h-48 flex-col items-center justify-between p-6 text-center">
-                                            <div>
-                                                <div className="mx-auto mb-4 flex size-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                                    <Icon className="size-5" />
+                                    return (
+                                        <Card
+                                            key={
+                                                action.title
+                                            }
+                                            className="group transition-shadow hover:shadow-md"
+                                        >
+                                            <CardContent className="flex min-h-48 flex-col items-center justify-between p-6 text-center">
+                                                <div>
+                                                    <div className="mx-auto mb-4 flex size-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                                        <Icon className="size-5" />
+                                                    </div>
+
+                                                    <h3 className="font-semibold">
+                                                        {
+                                                            action.title
+                                                        }
+                                                    </h3>
+
+                                                    <p className="mt-2 text-sm leading-5 text-muted-foreground">
+                                                        {
+                                                            action.description
+                                                        }
+                                                    </p>
                                                 </div>
 
-                                                <h3 className="font-semibold">
-                                                    {action.title}
-                                                </h3>
-
-                                                <p className="mt-2 text-sm leading-5 text-muted-foreground">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    className="mt-5 w-full"
+                                                    onClick={() => {
+                                                        if (
+                                                            action.action ===
+                                                            'Select Form'
+                                                        ) {
+                                                            setCreateFormOpen(
+                                                                true,
+                                                            );
+                                                        }
+                                                    }}
+                                                >
                                                     {
-                                                        action.description
+                                                        action.action
                                                     }
-                                                </p>
-                                            </div>
 
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                className="mt-5 w-full"
-                                                onClick={() => {
-                                                    if (action.action === 'Select Form') {
-                                                        setCreateFormOpen(true);
-                                                    }
-                                                }}
-                                            >
-                                                {action.action}
-
-                                                <ArrowRight className="ml-2 size-4 transition-transform group-hover:translate-x-1" />
-                                            </Button>
-                                        </CardContent>
-                                    </Card>
-                                );
-                            })}
+                                                    <ArrowRight className="ml-2 size-4 transition-transform group-hover:translate-x-1" />
+                                                </Button>
+                                            </CardContent>
+                                        </Card>
+                                    );
+                                },
+                            )}
                         </div>
                     </section>
 
                     {/* =================================================
-                        TOP Companies
+                        COMPANIES + STATUS
                     ================================================= */}
 
                     <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
@@ -531,26 +468,24 @@ export function Dashboard() {
                                     />
                                 ) : (
                                     <PayerTable
-                                        payers={topPayers}
+                                        payers={
+                                            topPayers
+                                        }
                                     />
                                 )}
                             </CardContent>
                         </Card>
-
-                        {/* =============================================
-                            FILED FORMS
-                        ============================================= */}
 
                         <Card className="lg:col-span-2">
                             <CardHeader>
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <CardTitle>
-                                            Filed Forms 2026
+                                            Form Status
                                         </CardTitle>
 
                                         <CardDescription>
-                                            Federal Status
+                                            Current form status
                                         </CardDescription>
                                     </div>
 
@@ -559,81 +494,100 @@ export function Dashboard() {
                             </CardHeader>
 
                             <CardContent>
-                                <div className="h-[220px] w-full">
-                                    <ResponsiveContainer
-                                        width="100%"
-                                        height="100%"
-                                    >
-                                        <PieChart>
-                                            <Pie
-                                                data={
-                                                    filingStatusData
-                                                }
-                                                dataKey="value"
-                                                nameKey="name"
-                                                cx="50%"
-                                                cy="50%"
-                                                innerRadius={55}
-                                                outerRadius={78}
-                                                paddingAngle={3}
-                                                stroke="#ffffff"
-                                                strokeWidth={2}
+                                {filingStatusData.length ===
+                                0 ? (
+                                    <div className="flex h-[220px] items-center justify-center text-sm text-muted-foreground">
+                                        No forms yet.
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="h-[220px] w-full">
+                                            <ResponsiveContainer
+                                                width="100%"
+                                                height="100%"
                                             >
-                                                {filingStatusData.map(
-                                                    (
-                                                        item,
-                                                    ) => (
-                                                        <Cell
-                                                            key={
-                                                                item.name
-                                                            }
-                                                            fill={
-                                                                item.color
-                                                            }
-                                                        />
-                                                    ),
-                                                )}
-                                            </Pie>
+                                                <PieChart>
+                                                    <Pie
+                                                        data={
+                                                            filingStatusData
+                                                        }
+                                                        dataKey="value"
+                                                        nameKey="name"
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={
+                                                            55
+                                                        }
+                                                        outerRadius={
+                                                            78
+                                                        }
+                                                        paddingAngle={
+                                                            3
+                                                        }
+                                                        stroke="#ffffff"
+                                                        strokeWidth={
+                                                            2
+                                                        }
+                                                    >
+                                                        {filingStatusData.map(
+                                                            (
+                                                                item,
+                                                            ) => (
+                                                                <Cell
+                                                                    key={
+                                                                        item.name
+                                                                    }
+                                                                    fill={
+                                                                        item.color
+                                                                    }
+                                                                />
+                                                            ),
+                                                        )}
+                                                    </Pie>
 
-                                            <Tooltip />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </div>
+                                                    <Tooltip />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                        </div>
 
-                                <div className="space-y-3">
-                                    {filingStatusData.map(
-                                        (item) => (
-                                            <div
-                                                key={
-                                                    item.name
-                                                }
-                                                className="flex items-center justify-between"
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    <span
-                                                        className="size-2.5 rounded-full"
-                                                        style={{
-                                                            backgroundColor:
-                                                                item.color,
-                                                        }}
-                                                    />
-
-                                                    <span className="text-sm">
-                                                        {
+                                        <div className="space-y-3">
+                                            {filingStatusData.map(
+                                                (
+                                                    item,
+                                                ) => (
+                                                    <div
+                                                        key={
                                                             item.name
                                                         }
-                                                    </span>
-                                                </div>
+                                                        className="flex items-center justify-between"
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <span
+                                                                className="size-2.5 rounded-full"
+                                                                style={{
+                                                                    backgroundColor:
+                                                                        item.color,
+                                                                }}
+                                                            />
 
-                                                <span className="text-sm font-semibold">
-                                                    {
-                                                        item.value
-                                                    }
-                                                </span>
-                                            </div>
-                                        ),
-                                    )}
-                                </div>
+                                                            <span className="text-sm">
+                                                                {
+                                                                    item.name
+                                                                }
+                                                            </span>
+                                                        </div>
+
+                                                        <span className="text-sm font-semibold">
+                                                            {
+                                                                item.value
+                                                            }
+                                                        </span>
+                                                    </div>
+                                                ),
+                                            )}
+                                        </div>
+                                    </>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
@@ -650,7 +604,7 @@ export function Dashboard() {
 
                             <CardDescription>
                                 Forms filed and currently in
-                                progress.
+                                progress during {new Date().getFullYear()}.
                             </CardDescription>
                         </CardHeader>
 
@@ -662,7 +616,7 @@ export function Dashboard() {
                                 >
                                     <AreaChart
                                         data={
-                                            filingActivityData
+                                            filingActivity
                                         }
                                         margin={{
                                             top: 10,
@@ -671,6 +625,61 @@ export function Dashboard() {
                                             bottom: 0,
                                         }}
                                     >
+                                        <CartesianGrid
+                                            stroke="#e5e7eb"
+                                            strokeDasharray="3 3"
+                                            vertical={false}
+                                        />
+
+                                        <XAxis
+                                            dataKey="month"
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{
+                                                fill: '#64748b',
+                                                fontSize: 12,
+                                            }}
+                                        />
+
+                                        <YAxis
+                                            axisLine={false}
+                                            tickLine={false}
+                                            allowDecimals={false}
+                                            tick={{
+                                                fill: '#64748b',
+                                                fontSize: 12,
+                                            }}
+                                        />
+
+                                        <Tooltip
+                                            cursor={false}
+                                            contentStyle={{
+                                                borderRadius: '8px',
+                                                border: '1px solid #e5e7eb',
+                                                background: '#ffffff',
+                                            }}
+                                        />
+
+                                        <Area
+                                            type="monotone"
+                                            dataKey="filed"
+                                            name="Filed"
+                                            stroke="#2563eb"
+                                            strokeWidth={
+                                                2.5
+                                            }
+                                            fill="url(#filedGradient)"
+                                        />
+
+                                        <Area
+                                            type="monotone"
+                                            dataKey="inProgress"
+                                            name="In Progress"
+                                            stroke="#111827"
+                                            strokeWidth={2}
+                                            fill="url(#progressGradient)"
+                                        />
+
                                         <defs>
                                             <linearGradient
                                                 id="filedGradient"
@@ -720,75 +729,8 @@ export function Dashboard() {
                                                 />
                                             </linearGradient>
                                         </defs>
-
-                                        <CartesianGrid
-                                            stroke="#e5e7eb"
-                                            strokeDasharray="3 3"
-                                            vertical={false}
-                                        />
-
-                                        <XAxis
-                                            dataKey="month"
-                                            axisLine={false}
-                                            tickLine={false}
-                                            tick={{
-                                                fill: '#64748b',
-                                                fontSize: 12,
-                                            }}
-                                        />
-
-                                        <YAxis
-                                            axisLine={false}
-                                            tickLine={false}
-                                            allowDecimals={false}
-                                            tick={{
-                                                fill: '#64748b',
-                                                fontSize: 12,
-                                            }}
-                                        />
-
-                                        <Tooltip
-                                            contentStyle={{
-                                                borderRadius:
-                                                    '8px',
-                                                border:
-                                                    '1px solid #e5e7eb',
-                                                background:
-                                                    '#ffffff',
-                                            }}
-                                        />
-
-                                        <Area
-                                            type="monotone"
-                                            dataKey="filed"
-                                            name="Filed"
-                                            stroke="#2563eb"
-                                            strokeWidth={2.5}
-                                            fill="url(#filedGradient)"
-                                        />
-
-                                        <Area
-                                            type="monotone"
-                                            dataKey="inProgress"
-                                            name="In Progress"
-                                            stroke="#111827"
-                                            strokeWidth={2}
-                                            fill="url(#progressGradient)"
-                                        />
                                     </AreaChart>
                                 </ResponsiveContainer>
-                            </div>
-
-                            <div className="mt-4 flex justify-center gap-6">
-                                <ChartLegend
-                                    color="#2563eb"
-                                    label="Filed"
-                                />
-
-                                <ChartLegend
-                                    color="#111827"
-                                    label="In Progress"
-                                />
                             </div>
                         </CardContent>
                     </Card>
@@ -816,7 +758,7 @@ export function Dashboard() {
                                 >
                                     <BarChart
                                         data={
-                                            filingActivityData
+                                            filingActivity
                                         }
                                         margin={{
                                             top: 10,
@@ -852,13 +794,11 @@ export function Dashboard() {
                                         />
 
                                         <Tooltip
+                                            cursor={false}
                                             contentStyle={{
-                                                borderRadius:
-                                                    '8px',
-                                                border:
-                                                    '1px solid #e5e7eb',
-                                                background:
-                                                    '#ffffff',
+                                                borderRadius: '8px',
+                                                border: '1px solid #e5e7eb',
+                                                background: '#ffffff',
                                             }}
                                         />
 
@@ -903,50 +843,23 @@ export function Dashboard() {
                             </CardHeader>
 
                             <CardContent className="space-y-3">
-                                {upcomingDeadlines.map(
-                                    (deadline) => (
-                                        <div
-                                            key={
-                                                deadline.id
-                                            }
-                                            className="rounded-lg border p-4 transition-colors hover:bg-muted/30"
-                                        >
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div className="flex gap-3">
-                                                    <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                                                        <CalendarDays className="size-4" />
-                                                    </div>
+                                <Deadline
+                                    date="October 31, 2026"
+                                    title="Quarterly filing deadline"
+                                    form="Form 941 - Q3"
+                                />
 
-                                                    <div>
-                                                        <p className="font-medium">
-                                                            {
-                                                                deadline.title
-                                                            }
-                                                        </p>
+                                <Deadline
+                                    date="January 31, 2027"
+                                    title="Annual filing deadline"
+                                    form="Form 1099 - NEC"
+                                />
 
-                                                        <p className="mt-1 text-sm text-muted-foreground">
-                                                            {
-                                                                deadline.form
-                                                            }
-                                                        </p>
-
-                                                        <p className="mt-2 text-sm font-medium">
-                                                            {
-                                                                deadline.date
-                                                            }
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                                                    {
-                                                        deadline.status
-                                                    }
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ),
-                                )}
+                                <Deadline
+                                    date="March 31, 2027"
+                                    title="Annual information return"
+                                    form="Form 1099 - MISC"
+                                />
                             </CardContent>
                         </Card>
 
@@ -969,52 +882,62 @@ export function Dashboard() {
                             </CardHeader>
 
                             <CardContent>
-                                <div className="space-y-1">
-                                    {recentFilings.map(
-                                        (filing) => (
-                                            <div
-                                                key={
-                                                    filing.id
-                                                }
-                                                className="flex items-center justify-between gap-4 rounded-lg p-3 transition-colors hover:bg-muted/50"
-                                            >
-                                                <div className="flex min-w-0 items-center gap-3">
-                                                    <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                                                        <FileCheck2 className="size-4" />
-                                                    </div>
-
-                                                    <div className="min-w-0">
-                                                        <p className="truncate font-medium">
-                                                            {
-                                                                filing.form
-                                                            }
-                                                        </p>
-
-                                                        <p className="truncate text-sm text-muted-foreground">
-                                                            {
-                                                                filing.recipient
-                                                            }
-                                                        </p>
-
-                                                        <p className="mt-0.5 text-xs text-muted-foreground">
-                                                            {
-                                                                filing.filedDate
-                                                            }
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-primary">
-                                                    <CheckCircle2 className="size-4" />
-
-                                                    {
-                                                        filing.status
+                                {recentFilings.length ===
+                                0 ? (
+                                    <div className="flex min-h-[180px] items-center justify-center text-sm text-muted-foreground">
+                                        No filed forms yet.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-1">
+                                        {recentFilings.map(
+                                            (filing) => (
+                                                <Link
+                                                    key={
+                                                        filing.id
                                                     }
-                                                </div>
-                                            </div>
-                                        ),
-                                    )}
-                                </div>
+                                                    href={
+                                                        `/tax-forms/${filing.id}/view`
+                                                    }
+                                                    className="flex items-center justify-between gap-4 rounded-lg p-3 transition-colors hover:bg-muted/50"
+                                                >
+                                                    <div className="flex min-w-0 items-center gap-3">
+                                                        <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                                                            <FileCheck2 className="size-4" />
+                                                        </div>
+
+                                                        <div className="min-w-0">
+                                                            <p className="truncate font-medium">
+                                                                {
+                                                                    filing.form
+                                                                }
+                                                            </p>
+
+                                                            <p className="truncate text-sm text-muted-foreground">
+                                                                {
+                                                                    filing.recipient
+                                                                }
+                                                            </p>
+
+                                                            <p className="mt-0.5 text-xs text-muted-foreground">
+                                                                {
+                                                                    filing.filedDate
+                                                                }
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-primary">
+                                                        <CheckCircle2 className="size-4" />
+
+                                                        {
+                                                            filing.status
+                                                        }
+                                                    </div>
+                                                </Link>
+                                            ),
+                                        )}
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
@@ -1039,32 +962,28 @@ export function Dashboard() {
                                 <OverviewItem
                                     label="Companies"
                                     value={
-                                        dashboard.stats
-                                            .total_companies
+                                        stats.total_companies
                                     }
                                 />
 
                                 <OverviewItem
-                                    label="Recipients"
+                                    label="Contractors"
                                     value={
-                                        dashboard.stats
-                                            .total_recipients
+                                        stats.total_recipients
                                     }
                                 />
 
                                 <OverviewItem
                                     label="Forms Filed"
                                     value={
-                                        dashboard.stats
-                                            .filed_forms
+                                        stats.filed_forms
                                     }
                                 />
 
                                 <OverviewItem
                                     label="Forms In Progress"
                                     value={
-                                        dashboard.stats
-                                            .forms_in_progress
+                                        stats.forms_in_progress
                                     }
                                 />
                             </div>
@@ -1072,9 +991,12 @@ export function Dashboard() {
                     </Card>
                 </div>
             </Main>
+
             <CreateFormSelector
                 open={createFormOpen}
-                onOpenChange={setCreateFormOpen}
+                onOpenChange={
+                    setCreateFormOpen
+                }
             />
         </>
     );
@@ -1098,85 +1020,77 @@ function PayerChart({
 }: PayerChartProps) {
     return (
         <div className="space-y-4">
-            {data.length === 0 ? (
-                <EmptyPayers />
-            ) : (
-                <>
-                    <div className="h-[320px] w-full">
-                        <ResponsiveContainer
-                            width="100%"
-                            height="100%"
-                        >
-                            <BarChart
-                                data={data}
-                                margin={{
-                                    top: 10,
-                                    right: 10,
-                                    left: -10,
-                                    bottom: 35,
-                                }}
-                                            >
-                                <CartesianGrid
-                                    stroke="#e5e7eb"
-                                    strokeDasharray="3 3"
-                                    vertical={false}
-                                />
+            <div className="h-[320px] w-full">
+                <ResponsiveContainer
+                    width="100%"
+                    height="100%"
+                >
+                    <BarChart
+                        data={data}
+                        margin={{
+                            top: 10,
+                            right: 10,
+                            left: -10,
+                            bottom: 35,
+                        }}
+                    >
+                        <CartesianGrid
+                            stroke="#e5e7eb"
+                            strokeDasharray="3 3"
+                            vertical={false}
+                        />
 
-                                <XAxis
-                                    dataKey="name"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    angle={-20}
-                                    textAnchor="end"
-                                    height={60}
-                                    tick={{
-                                        fill: '#64748b',
-                                        fontSize: 11,
-                                    }}
-                                />
+                        <XAxis
+                            dataKey="name"
+                            axisLine={false}
+                            tickLine={false}
+                            angle={-20}
+                            textAnchor="end"
+                            height={60}
+                            tick={{
+                                fill: '#64748b',
+                                fontSize: 11,
+                            }}
+                        />
 
-                                <YAxis
-                                    axisLine={false}
-                                    tickLine={false}
-                                    allowDecimals={false}
-                                    tick={{
-                                        fill: '#64748b',
-                                        fontSize: 12,
-                                    }}
-                                />
+                        <YAxis
+                            axisLine={false}
+                            tickLine={false}
+                            allowDecimals={false}
+                            tick={{
+                                fill: '#64748b',
+                                fontSize: 12,
+                            }}
+                        />
 
-                                <Tooltip
-                                    contentStyle={{
-                                        borderRadius:
-                                            '8px',
-                                        border:
-                                            '1px solid #e5e7eb',
-                                        background:
-                                            '#ffffff',
-                                    }}
-                                />
+                       <Tooltip
+                            cursor={false}
+                            contentStyle={{
+                                borderRadius: '8px',
+                                border: '1px solid #e5e7eb',
+                                background: '#ffffff',
+                            }}
+                        />
 
-                                <Bar
-                                    dataKey="recipients"
-                                    name="Recipients"
-                                    fill="#2563eb"
-                                    radius={[
-                                        5,
-                                        5,
-                                        0,
-                                        0,
-                                    ]}
-                                />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
+                        <Bar
+                            dataKey="recipients"
+                            name="Recipients"
+                            fill="#2563eb"
+                            radius={[
+                                5,
+                                5,
+                                0,
+                                0,
+                            ]}
+                        />
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
 
-                    <p className="text-center text-sm text-muted-foreground">
-                        Number of recipients / contractors
-                        associated with each payer.
-                    </p>
-                </>
-            )}
+            <p className="text-center text-sm text-muted-foreground">
+                Number of recipients / contractors
+                associated with each company.
+            </p>
         </div>
     );
 }
@@ -1227,10 +1141,6 @@ function PayerTable({
                             key={payer.id}
                             className="border-b last:border-0 hover:bg-muted/40"
                         >
-                            {/* =====================================
-                                COMPANY / PAYER
-                            ===================================== */}
-
                             <td className="px-5 py-4">
                                 <Link
                                     href={`/companies/${payer.id}`}
@@ -1240,38 +1150,17 @@ function PayerTable({
                                 </Link>
                             </td>
 
-                            {/* =====================================
-                                RECIPIENTS
-                            ===================================== */}
-
                             <td className="px-5 py-4">
-                                <Link
-                                    href={`/companies/${payer.id}`}
-                                    className="font-medium text-primary underline-offset-4 hover:underline"
-                                >
-                                    {payer.recipients}
-                                </Link>
+                                {payer.recipients}
                             </td>
-
-                            {/* =====================================
-                                IN PROGRESS
-                            ===================================== */}
 
                             <td className="px-5 py-4">
                                 {payer.in_progress}
                             </td>
 
-                            {/* =====================================
-                                IN CART
-                            ===================================== */}
-
                             <td className="px-5 py-4">
                                 {payer.in_cart}
                             </td>
-
-                            {/* =====================================
-                                FILED
-                            ===================================== */}
 
                             <td className="px-5 py-4">
                                 {payer.filed}
@@ -1310,6 +1199,54 @@ function EmptyPayers() {
                 <Users className="mr-2 size-4" />
                 Add Company
             </Button>
+        </div>
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Deadline
+|--------------------------------------------------------------------------
+*/
+
+interface DeadlineProps {
+    date: string;
+    title: string;
+    form: string;
+}
+
+function Deadline({
+    date,
+    title,
+    form,
+}: DeadlineProps) {
+    return (
+        <div className="rounded-lg border p-4 transition-colors hover:bg-muted/30">
+            <div className="flex items-start justify-between gap-4">
+                <div className="flex gap-3">
+                    <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <CalendarDays className="size-4" />
+                    </div>
+
+                    <div>
+                        <p className="font-medium">
+                            {title}
+                        </p>
+
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            {form}
+                        </p>
+
+                        <p className="mt-2 text-sm font-medium">
+                            {date}
+                        </p>
+                    </div>
+                </div>
+
+                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                    Upcoming
+                </span>
+            </div>
         </div>
     );
 }
@@ -1362,38 +1299,7 @@ function StatCard({
 
 /*
 |--------------------------------------------------------------------------
-| Chart Legend
-|--------------------------------------------------------------------------
-*/
-
-interface ChartLegendProps {
-    color: string;
-    label: string;
-}
-
-function ChartLegend({
-    color,
-    label,
-}: ChartLegendProps) {
-    return (
-        <div className="flex items-center gap-2">
-            <span
-                className="size-2.5 rounded-full"
-                style={{
-                    backgroundColor: color,
-                }}
-            />
-
-            <span className="text-xs text-muted-foreground">
-                {label}
-            </span>
-        </div>
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| Account Overview
+| Overview Item
 |--------------------------------------------------------------------------
 */
 
@@ -1418,3 +1324,5 @@ function OverviewItem({
         </div>
     );
 }
+
+export default Dashboard;
