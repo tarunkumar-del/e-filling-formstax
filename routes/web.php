@@ -33,7 +33,18 @@ use App\Http\Controllers\TaxForm\GetFormContractorsController;
 use App\Http\Controllers\TaxForm\FormController as UserFormController;
 use App\Http\Controllers\TaxForm\ViewFormController;
 use App\Http\Controllers\TaxForm\UserCreateFormOptionsController;
+ 
+/*
+    |--------------------------------------------------------------------------
+    | Dashboard
+    |--------------------------------------------------------------------------
+    */
 
+    Route::get(
+        '/dashboard',
+        [DashboardController::class, 'index']
+    )->name('dashboard');
+    
 /*
 |--------------------------------------------------------------------------
 | Tax Form Create API Routes
@@ -252,16 +263,6 @@ Route::middleware(['auth', 'role:user'])->group(function () {
         });
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Dashboard
-    |--------------------------------------------------------------------------
-    */
-
-    Route::get(
-        '/dashboard',
-        [DashboardController::class, 'index']
-    )->name('dashboard');
 
 
     /*

@@ -9,19 +9,27 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
-
+use Illuminate\Http\RedirectResponse;
 final class DashboardController
 {
-    public function index(Request $request): Response
+    public function index(Request $request): Response|RedirectResponse
     {
         $user = $request->user();
 
         abort_unless($user !== null, 401);
 
-        return $this->renderDashboard(
-            userId: (int) $user->id,
-            isAdmin: false,
-        );
+        if ($user->hasRole('admin')) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($user->hasRole('user')) {
+            return $this->renderDashboard(
+                userId: (int) $user->id,
+                isAdmin: false,
+            );
+        }
+
+        abort(403);
     }
 
     public function admin(Request $request): Response
@@ -154,7 +162,7 @@ final class DashboardController
             )
             ->get()
             ->keyBy(
-                fn ($row) => (int) $row->month_number
+                fn($row) => (int) $row->month_number
             );
 
         $monthlyFilingActivity = collect(range(1, 12))

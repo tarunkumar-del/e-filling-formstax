@@ -42,6 +42,11 @@ export function ProfileDropdown() {
     const displayName = user.name || 'User';
     const displayEmail = user.email || '';
 
+    const role = user.roles?.[0] || 'user';
+
+    const displayRole =
+        role.toLowerCase() === 'admin' ? 'Administrator' : '';
+
     const initials =
         displayName
             .trim()
@@ -87,10 +92,14 @@ export function ProfileDropdown() {
                             <p className="text-xs leading-none text-muted-foreground">
                                 {displayEmail}
                             </p>
+
+                            <p className="text-xs leading-none font-medium text-primary">
+                                {displayRole}
+                            </p>
                         </div>
                     </DropdownMenuLabel>
 
-                    <DropdownMenuSeparator />
+                    {/* <DropdownMenuSeparator />
 
                     <DropdownMenuGroup>
                         <DropdownMenuItem asChild>
@@ -123,7 +132,7 @@ export function ProfileDropdown() {
                         <DropdownMenuItem>
                             New Team
                         </DropdownMenuItem>
-                    </DropdownMenuGroup>
+                    </DropdownMenuGroup> */}
 
                     <DropdownMenuSeparator />
 

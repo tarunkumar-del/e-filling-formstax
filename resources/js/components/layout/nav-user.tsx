@@ -123,18 +123,18 @@ export function NavUser({ user }: NavUserProps) {
                                 </div>
                             </DropdownMenuLabel>
 
-                            <DropdownMenuSeparator />
+                            {/* <DropdownMenuSeparator /> */}
 
-                            <DropdownMenuGroup>
+                            {/* <DropdownMenuGroup>
                                 <DropdownMenuItem>
                                     <Sparkles />
                                     Upgrade to Pro
                                 </DropdownMenuItem>
-                            </DropdownMenuGroup>
+                            </DropdownMenuGroup> */}
 
                             <DropdownMenuSeparator />
 
-                            <DropdownMenuGroup>
+                            {/* <DropdownMenuGroup>
                                 <DropdownMenuItem asChild>
                                     <Link href="/settings/account">
                                         <BadgeCheck />
@@ -157,7 +157,7 @@ export function NavUser({ user }: NavUserProps) {
                                 </DropdownMenuItem>
                             </DropdownMenuGroup>
 
-                            <DropdownMenuSeparator />
+                            <DropdownMenuSeparator /> */}
 
                             <DropdownMenuItem
                                 variant="destructive"

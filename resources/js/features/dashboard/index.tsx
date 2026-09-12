@@ -232,7 +232,7 @@ export function Dashboard() {
                 <div className="ms-auto flex items-center space-x-4">
                     <Search />
                     <ThemeSwitch />
-                    <ConfigDrawer />
+                    {/* <ConfigDrawer /> */}
                     <ProfileDropdown />
                 </div>
             </Header>
