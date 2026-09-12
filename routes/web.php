@@ -34,6 +34,7 @@ use App\Http\Controllers\TaxForm\FormController as UserFormController;
 use App\Http\Controllers\TaxForm\ViewFormController;
 use App\Http\Controllers\TaxForm\UserCreateFormOptionsController;
  
+
 /*
     |--------------------------------------------------------------------------
     | Dashboard
@@ -44,7 +45,7 @@ use App\Http\Controllers\TaxForm\UserCreateFormOptionsController;
         '/dashboard',
         [DashboardController::class, 'index']
     )->name('dashboard');
-    
+
 /*
 |--------------------------------------------------------------------------
 | Tax Form Create API Routes
